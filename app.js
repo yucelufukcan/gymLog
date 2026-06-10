@@ -1,0 +1,2048 @@
+const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
+
+
+// ─── i18n ────────────────────────────────────────────────────────────────────
+const TR = {
+  appName:"GymLog", by:"tarafından",
+  tabs:{ dashboard:"Panel", weekly:"Haftalık", workout:"Antrenman", supps:"Takviye", nutrition:"Beslenme", health:"Sağlık", reports:"Raporlar", import:"Cihaz", settings:"Ayarlar" },
+  save:"Kaydet", saved:"Kaydedildi",
+  dashboard:{ greeting:"Merhaba", today:"Bugün", restDay:"Dinlenme Günü", weekOf:"Hafta", gymDays:"Gym Günleri", totalTime:"Toplam Süre", calBurned:"Yakılan Kalori", protein:"Protein", waterAvg:"Ort. Su", energy:"Enerji", suppRate:"Takviye Uyumu", weight:"Kilo", weeklyGoals:"Günlük Hedefler", weeklyChart:"Haftalık Antrenman", bmi:"Vücut Kitle Endeksi", bmiIdeal:"İdeal Kilo Aralığı", bmiYours:"Senin BMI'ın", bmiCat:"Kategori", targetWeight:"Hedef Kilo", smart:"Akıllı Hedefler" },
+  alerts:{ noCreatine:"Bugün creatine almadın!", lowProtein:"Protein hedefinin altındasın", lowSleep:"Uyku süren düşük — recovery için kritik!", highPain:"Ağrı seviyesi yüksek — bugün recovery önerilir", lowWater:"Su tüketimin düşük — en az 2.5L hedefle", calSurplus:"Kalori fazlası — kas büyümesi için iyi!", calDeficit:"Kalori açığı — hedefin altındasın" },
+  spine:{ title:"Omurga Güvenliği", w1:"Ağır deadlift/squat öncesi formu kontrol et", w2:"Schmorl nodes: yüksek yük omurganı zorlayabilir", w3:"Ağrı artarsa hemen yükü azalt", w4:"Haftada max %10 progressive overload" },
+  weekly:{ gymToggle:"Gym'e gittim ✓", type:"Antrenman Tipi", duration:"Süre (dk)", start:"Başlangıç", end:"Bitiş", calBurned:"Yakılan Kalori", water:"Su (L)", bodyWeight:"Vücut Ağırlığı (kg)", sleep:"Uyku (saat)", energy:"Enerji Seviyesi", motivation:"Motivasyon", pain:"Ağrı Seviyesi", notes:"Notlar", notesPlaceholder:"Bugün nasıl hissettirdi?" },
+  workout:{ title:"Egzersizler", add:"Ekle", name:"Egzersiz Adı", namePH:"Bench Press, Lat Pulldown...", equipment:"Ekipman", sets:"Set", reps:"Tekrar", weight:"Ağırlık", rpe:"RPE (1-10)", rest:"Dinlenme (sn)", note:"Not", notePH:"Form notu, varyasyon...", spineRisk:"Yüksek omurga yüklü hareket", addBtn:"Egzersiz Ekle", volume:"Hacim", noEx:"Henüz egzersiz yok", spineWarn:"Yüksek omurga yükü! Form kontrolü yap." },
+  supps:{ title:"Takviye Takibi", taken:"Alındı", mark:"İşaretle", amount:"Miktar" },
+  nutrition:{ title:"Öğünler", add:"Ekle", name:"Besin Adı", namePH:"Tavuk göğsü + pirinç...", mealType:"Öğün Tipi", cal:"Kalori (kcal)", protein:"Protein (g)", carbs:"Karbonhidrat (g)", fat:"Yağ (g)", addBtn:"Öğün Ekle", noMeals:"Henüz öğün yok", progress:"İlerleme", proteinGoal:"Protein Hedefi", calGoal:"Kalori Hedefi" },
+  health:{ recovery:"Recovery Skoru", ready:"Sert antrenman için hazırsın", moderate:"Orta yoğunlukta antrenman yap", rest:"Dinlenme önerilir", sleep:"Uyku & Genel Durum", sleepQ:"Uyku Kalitesi", fatigue:"Yorgunluk", stress:"Stres", pain:"Ağrı Takibi", back:"Sırt / Omurga Ağrısı", knee:"Diz Ağrısı", muscle:"Kas Ağrısı", critical:"Kritik ağrı! Antrenman yapma.", stretching:"Bugün esneme / mobilite yaptım", recoveryNotes:"Recovery Notları", recoveryPH:"Buz, sauna, yürüyüş, foam roll..." },
+  reports:{ period:"Dönem Seç", weeks:"hafta", gymDays:"Gym Günleri", avgWeight:"Ort. Kilo", weightChange:"Kilo Δ", avgEnergy:"Ort. Enerji", suppAvg:"Supp. Ort.", painDelta:"Ağrı Δ", bestDay:"Bu Haftanın En İyisi", gymChart:"Haftalık Gym Günleri", workoutChart:"Haftalık Antrenman (dk)", weightChart:"Vücut Ağırlığı (kg)", energyChart:"Ort. Enerji Seviyesi", painChart:"Ağrı Trendi", suppChart:"Supplement Uyum (%)", proteinChart:"Ort. Protein (g)", analysis:"Dönem Analizi", painGood:"Harika! Ağrı azaldı.", painBad:"Ağrı artıyor — recovery'ye dikkat!", weightLog:"Kilo Günlüğü", bmiLog:"BMI Günlüğü" },
+  settings:{ profile:"Profil Bilgileri", name:"İsim", age:"Yaş", height:"Boy (cm)", weight:"Başlangıç Kilo (kg)", goal:"Hedef", notes:"Sağlık Notları", smartGoals:"Akıllı Hedef Sistemi", calcGoals:"Hedefleri Otomatik Hesapla", protein:"Protein Hedefi (g)", calories:"Kalori Hedefi (kcal)", water:"Su Hedefi (L)", duration:"Antrenman Süresi (dk)", data:"Veri Yönetimi", export:"JSON Dışa Aktar", import:"JSON İçe Aktar", reset:"Haftayı Sıfırla", resetConfirm:"Tüm veriler silinecek! Emin misin?", yes:"Evet, Sil", cancel:"İptal", language:"Dil / Language" },
+  bmi:{ underweight:"Zayıf", normal:"Normal", overweight:"Fazla Kilolu", obese:"Obez", title:"BMI Skalası", ideal:"İdeal Kilo", range:"Aralık", yours:"Senin Kilonu" },
+  periods:{ week:"1 Hafta", month:"1 Ay", "3month":"3 Ay", "6month":"6 Ay", year:"1 Yıl" },
+};
+
+const EN = {
+  appName:"GymLog", by:"by",
+  tabs:{ dashboard:"Dashboard", weekly:"Weekly", workout:"Workout", supps:"Supplements", nutrition:"Nutrition", health:"Health", reports:"Reports", import:"Device", settings:"Settings" },
+  save:"Save", saved:"Saved",
+  dashboard:{ greeting:"Hello", today:"Today", restDay:"Rest / Recovery", weekOf:"Week of", gymDays:"Gym Days", totalTime:"Total Time", calBurned:"Cal Burned", protein:"Protein", waterAvg:"Avg Water", energy:"Energy", suppRate:"Supp Rate", weight:"Weight", weeklyGoals:"Today's Goals", weeklyChart:"Weekly Workout Duration", bmi:"Body Mass Index", bmiIdeal:"Ideal Weight Range", bmiYours:"Your BMI", bmiCat:"Category", targetWeight:"Target Weight", smart:"Smart Goals" },
+  alerts:{ noCreatine:"You haven't taken creatine today!", lowProtein:"You're below your protein target", lowSleep:"Sleep is low — critical for recovery!", highPain:"High pain level — recovery recommended", lowWater:"Low water intake — aim for 2.5L+", calSurplus:"Calorie surplus — great for muscle growth!", calDeficit:"Calorie deficit — below your target" },
+  spine:{ title:"Spine Safety", w1:"Check form before heavy deadlift/squat", w2:"Schmorl nodes: high load can stress spine", w3:"Reduce load immediately if pain increases", w4:"Max 10% progressive overload per week" },
+  weekly:{ gymToggle:"Went to gym ✓", type:"Workout Type", duration:"Duration (min)", start:"Start", end:"End", calBurned:"Calories Burned", water:"Water (L)", bodyWeight:"Body Weight (kg)", sleep:"Sleep (hrs)", energy:"Energy Level", motivation:"Motivation", pain:"Pain Level", notes:"Notes", notesPlaceholder:"How did today feel?" },
+  workout:{ title:"Exercises", add:"Add", name:"Exercise Name", namePH:"Bench Press, Lat Pulldown...", equipment:"Equipment", sets:"Sets", reps:"Reps", weight:"Weight", rpe:"RPE (1-10)", rest:"Rest (sec)", note:"Note", notePH:"Form cue, variation...", spineRisk:"High spine-load movement", addBtn:"Add Exercise", volume:"Volume", noEx:"No exercises yet", spineWarn:"High spinal load! Check form carefully." },
+  supps:{ title:"Daily Supplements", taken:"Taken", mark:"Mark", amount:"Amount" },
+  nutrition:{ title:"Meals", add:"Add", name:"Food Name", namePH:"Chicken breast + rice...", mealType:"Meal Type", cal:"Calories (kcal)", protein:"Protein (g)", carbs:"Carbs (g)", fat:"Fat (g)", addBtn:"Add Meal", noMeals:"No meals logged yet", progress:"Progress", proteinGoal:"Protein Goal", calGoal:"Calorie Goal" },
+  health:{ recovery:"Recovery Score", ready:"Ready to train hard", moderate:"Train moderately", rest:"Rest recommended", sleep:"Sleep & Wellbeing", sleepQ:"Sleep Quality", fatigue:"Fatigue Level", stress:"Stress Level", pain:"Pain Tracking", back:"Back / Spine Pain", knee:"Knee Pain", muscle:"Muscle Soreness", critical:"Critical pain! Don't train.", stretching:"Stretching / mobility done today", recoveryNotes:"Recovery Notes", recoveryPH:"Ice, sauna, walk, foam roll..." },
+  reports:{ period:"Select Period", weeks:"weeks", gymDays:"Gym Days", avgWeight:"Avg Weight", weightChange:"Weight Δ", avgEnergy:"Avg Energy", suppAvg:"Supp Avg", painDelta:"Pain Δ", bestDay:"Best Day This Week", gymChart:"Weekly Gym Days", workoutChart:"Weekly Workout (min)", weightChart:"Body Weight (kg)", energyChart:"Avg Energy Level", painChart:"Pain Trend", suppChart:"Supplement Adherence (%)", proteinChart:"Avg Protein (g)", analysis:"Period Analysis", painGood:"Great! Pain decreased.", painBad:"Pain increasing — prioritise recovery!", weightLog:"Weight Log", bmiLog:"BMI Log" },
+  settings:{ profile:"Profile", name:"Name", age:"Age", height:"Height (cm)", weight:"Starting Weight (kg)", goal:"Goal", notes:"Health Notes", smartGoals:"Smart Goal System", calcGoals:"Auto-Calculate Goals", protein:"Protein Goal (g)", calories:"Calorie Goal (kcal)", water:"Water Goal (L)", duration:"Workout Duration (min)", data:"Data Management", export:"Export JSON", import:"Import JSON", reset:"Reset Week", resetConfirm:"All data will be deleted! Are you sure?", yes:"Yes, Delete", cancel:"Cancel", language:"Language / Dil" },
+  bmi:{ underweight:"Underweight", normal:"Normal", overweight:"Overweight", obese:"Obese", title:"BMI Scale", ideal:"Ideal Weight", range:"Range", yours:"Your Weight" },
+  periods:{ week:"1 Week", month:"1 Month", "3month":"3 Months", "6month":"6 Months", year:"1 Year" },
+};
+
+const LangCtx = createContext({ t: TR, lang: "tr", setLang: () => {} });
+const useLang = () => useContext(LangCtx);
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const COLORS = {
+  blue:   { bg:"#1d4ed8", light:"#dbeafe", text:"#1e40af", glow:"#3b82f6" },
+  green:  { bg:"#059669", light:"#d1fae5", text:"#065f46", glow:"#10b981" },
+  orange: { bg:"#d97706", light:"#fef3c7", text:"#92400e", glow:"#f59e0b" },
+  red:    { bg:"#dc2626", light:"#fee2e2", text:"#991b1b", glow:"#ef4444" },
+  purple: { bg:"#7c3aed", light:"#ede9fe", text:"#5b21b6", glow:"#8b5cf6" },
+  cyan:   { bg:"#0891b2", light:"#cffafe", text:"#164e63", glow:"#06b6d4" },
+};
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const DAY_TR = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"];
+const WORKOUT_TYPES_TR = ["İtme (Push)","Çekme (Pull)","Üst Vücut","Alt Vücut","Tam Vücut","Sırt","Göğüs","Kollar","Omuzlar","Core","Mobilite","Yüzme","Kardiyo","Recovery","Dinlenme"];
+const WORKOUT_TYPES_EN = ["Push","Pull","Upper Body","Lower Body","Full Body","Back","Chest","Arms","Shoulders","Core","Mobility","Swimming","Cardio","Recovery","Rest"];
+const EQUIPMENT = ["Dumbbell","Barbell","Cable Machine","Chest Press","Lat Pulldown","Seated Row","Shoulder Press","Smith Machine","Treadmill","Bike","Rowing Machine","Assisted Pull-up","Bench","Bodyweight","Other"];
+const MEAL_TYPES_TR = ["Kahvaltı","Öğle","Akşam","Ara Öğün","Shake","Diğer"];
+const MEAL_TYPES_EN = ["Breakfast","Lunch","Dinner","Snack","Shake","Other"];
+const SUPPLEMENTS = [
+  { key:"protein",      labelTR:"Protein Tozu",         labelEN:"Protein Powder",        unit:"g",    color:"blue",   def:30 },
+  { key:"creatine",     labelTR:"Kreatin Monohidrat",   labelEN:"Creatine Monohydrate",  unit:"g",    color:"green",  def:5  },
+  { key:"collagen",     labelTR:"Kollajen",             labelEN:"Collagen",              unit:"g",    color:"orange", def:10 },
+  { key:"preworkout",   labelTR:"Pre-Workout",          labelEN:"Pre-Workout",           unit:"g",    color:"red",    def:6  },
+  { key:"omega3",       labelTR:"Omega-3",              labelEN:"Omega-3",               unit:"caps", color:"cyan",   def:2  },
+  { key:"multivitamin", labelTR:"Multivitamin",         labelEN:"Multivitamin",          unit:"tabs", color:"purple", def:1  },
+];
+
+// ─── BMI & Smart Goals ────────────────────────────────────────────────────────
+const calcBMI = (weight, heightCm) => {
+  if (!weight || !heightCm) return null;
+  const h = heightCm / 100;
+  return +(weight / (h * h)).toFixed(1);
+};
+const bmiCategory = (bmi, t) => {
+  if (!bmi) return { cat: "-", color: "#6b7280" };
+  if (bmi < 18.5) return { cat: t.bmi.underweight, color: "#06b6d4" };
+  if (bmi < 25)   return { cat: t.bmi.normal,      color: "#059669" };
+  if (bmi < 30)   return { cat: t.bmi.overweight,  color: "#f59e0b" };
+  return            { cat: t.bmi.obese,             color: "#dc2626" };
+};
+const idealWeightRange = (heightCm) => {
+  if (!heightCm) return { min: 0, max: 0 };
+  const h = heightCm / 100;
+  return { min: +(18.5 * h * h).toFixed(1), max: +(24.9 * h * h).toFixed(1) };
+};
+// Mifflin-St Jeor + activity
+const calcSmartGoals = (profile) => {
+  const { age, height, weight, activityLevel = 1.55, goal: goalType } = profile;
+  if (!age || !height || !weight) return null;
+  const bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+  const tdee = Math.round(bmr * activityLevel);
+  const isHypertrophy = (goalType || "").toLowerCase().includes("kas") || (goalType || "").toLowerCase().includes("hyper") || (goalType || "").toLowerCase().includes("muscle");
+  const calories = isHypertrophy ? tdee + 300 : tdee;
+  const protein  = Math.round(weight * 2.0); // 2g/kg for hypertrophy
+  const water    = +(weight * 0.033 + 0.5).toFixed(1);
+  const gymDuration = 60;
+  return { calories, protein, water, gymDuration, tdee };
+};
+
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+const defaultProfile = () => ({
+  name:"Can", age:26, height:176, weight:75,
+  goal:"Kas hipertrofisi (spine-safe)",
+  notes:"Schmorl's nodes, mild disc degeneration, sol diz şişliği",
+  activityLevel:1.55,
+  targetWeight:78,
+});
+const defaultDay = () => ({
+  gym:false, startTime:"", endTime:"", duration:0, caloriesBurned:0,
+  workoutType:"", energy:5, motivation:5, pain:0, sleep:7.5, water:2.5,
+  notes:"", exercises:[],
+  supplements: Object.fromEntries(SUPPLEMENTS.map(s=>[s.key,{taken:false,amount:s.def,time:""}])),
+  nutrition:{ meals:[], totalCalories:0, totalProtein:0, totalCarbs:0, totalFat:0 },
+  health:{ sleepQuality:5, fatigue:5, stress:5, backPain:0, kneePain:0, muscleSoreness:0, stretching:false, recoveryNotes:"" },
+  weight:75,
+});
+const defaultWeek = () => ({
+  id:Date.now(), startDate:new Date().toISOString().slice(0,10),
+  days:Object.fromEntries(DAYS.map(d=>[d,defaultDay()])),
+  goals:{ protein:160, calories:2800, water:3, gymDuration:60 },
+  notes:"", weightLog:[],
+});
+
+const save = (k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+const load = (k,fb)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):fb; }catch(e){ return fb; } };
+
+// ─── UI Primitives ────────────────────────────────────────────────────────────
+const Icon = ({d,size=20,color="currentColor"})=>(
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
+);
+const IC = {
+  home:"M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z",
+  cal:"M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+  dumbbell:"M6.5 6.5h11M6.5 17.5h11M3 10.5h18M3 13.5h18",
+  pill:"M10.5 3.5a6 6 0 010 12 6 6 0 010-12zm5.196 1.804l-9.392 9.392",
+  apple:"M12 2a3 3 0 013 3c0 .34-.06.67-.17.97C16.88 6.5 19 9.02 19 12c0 4.42-3.13 8-7 8s-7-3.58-7-8c0-2.98 2.12-5.5 5.17-6.03A3 3 0 0112 2z",
+  heart:"M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z",
+  chart:"M18 20V10M12 20V4M6 20v-6",
+  gear:"M12 15a3 3 0 100-6 3 3 0 000 6zm0 0v3m0-9V3m6.364 3.636l-2.122 2.122M5.758 16.243L3.636 18.364M21 12h-3M6 12H3m14.364 6.364l-2.122-2.122M5.758 7.757L3.636 5.636",
+  water:"M12 2C6 10 4 14 4 17a8 8 0 0016 0c0-3-2-7-8-15z",
+  zap:"M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  plus:"M12 5v14M5 12h14",
+  trash:"M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6",
+  check:"M20 6L9 17l-5-5",
+  alert:"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01",
+  dl:"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3",
+  ul:"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12",
+  refresh:"M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15",
+  x:"M18 6L6 18M6 6l12 12",
+  spine:"M12 2v20M8 6c0 0 2 2 4 2s4-2 4-2M8 10c0 0 2 2 4 2s4-2 4-2M8 14c0 0 2 2 4 2s4-2 4-2",
+  star:"M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+  fire:"M12 2c0 6-6 8-6 14a6 6 0 0012 0c0-6-6-8-6-14z",
+  user:"M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z",
+  save:"M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2zM17 21v-8H7v8M7 3v5h8",
+  globe:"M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm-1-17.93v3.43l-3.27 5.66H5.07A9.01 9.01 0 0011 4.07zM13 4.07A9.01 9.01 0 0118.93 10H16.27l-3.27-5.66V4.07z",
+  target:"M12 22a10 10 0 100-20 10 10 0 000 20zm0-6a4 4 0 100-8 4 4 0 000 8zm0-2a2 2 0 100-4 2 2 0 000 4z",
+};
+
+const Card=({children,style={},glow,glass})=>(
+  <div style={{background:glass?"rgba(255,255,255,0.7)":"#fff",backdropFilter:glass?"blur(12px)":"none",borderRadius:20,padding:"18px 20px",boxShadow:glow?`0 0 0 1.5px ${glow}22,0 4px 28px ${glow}20`:"0 2px 16px #0000000d",border:glow?`1.5px solid ${glow}33`:"1.5px solid #f1f5f9",...style}}>
+    {children}
+  </div>
+);
+
+const ProgressRing=({value,max,size=72,stroke=7,color="#3b82f6",label,sub})=>{
+  const r=size/2-stroke; const circ=2*Math.PI*r;
+  const pct=Math.min(1,value/(max||1));
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+      <div style={{position:"relative",width:size,height:size}}>
+        <svg width={size} height={size}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={stroke}/>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+            strokeDasharray={circ} strokeDashoffset={circ*(1-pct)}
+            strokeLinecap="round" transform={`rotate(-90 ${size/2} ${size/2})`}
+            style={{transition:"stroke-dashoffset .6s cubic-bezier(.4,0,.2,1)"}}/>
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+          <span style={{fontSize:13,fontWeight:900,color,fontFamily:"monospace"}}>{Math.round(pct*100)}%</span>
+        </div>
+      </div>
+      {label&&<div style={{fontSize:10,fontWeight:700,color:"#374151",textAlign:"center"}}>{label}</div>}
+      {sub&&<div style={{fontSize:9,color:"#9ca3af",textAlign:"center"}}>{sub}</div>}
+    </div>
+  );
+};
+
+const ProgressBar=({value,max,color="#3b82f6",height=8,animated=true})=>(
+  <div style={{background:"#e5e7eb",borderRadius:99,height,overflow:"hidden"}}>
+    <div style={{width:`${Math.min(100,(value/(max||1))*100)}%`,background:color,height:"100%",borderRadius:99,transition:animated?"width .5s cubic-bezier(.4,0,.2,1)":"none"}}/>
+  </div>
+);
+
+const Badge=({children,color="blue"})=>(
+  <span style={{background:COLORS[color]?.light,color:COLORS[color]?.text,padding:"2px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{children}</span>
+);
+
+const Slider=({value,onChange,min=0,max=10,color="#3b82f6"})=>(
+  <input type="range" min={min} max={max} step={1} value={value} onChange={e=>onChange(Number(e.target.value))} style={{width:"100%",accentColor:color,cursor:"pointer"}}/>
+);
+
+const Toggle=({value,onChange,label})=>(
+  <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+    <div onClick={()=>onChange(!value)} style={{width:44,height:24,borderRadius:12,background:value?"#3b82f6":"#d1d5db",position:"relative",transition:"background .2s",flexShrink:0}}>
+      <div style={{position:"absolute",top:2,left:value?22:2,width:20,height:20,borderRadius:10,background:"#fff",boxShadow:"0 1px 4px #0002",transition:"left .2s"}}/>
+    </div>
+    {label&&<span style={{fontSize:13,color:"#374151",fontWeight:500}}>{label}</span>}
+  </label>
+);
+
+const Input=({value,onChange,placeholder,type="text",style={}})=>(
+  <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+    style={{width:"100%",padding:"9px 13px",borderRadius:10,border:"1.5px solid #e5e7eb",fontSize:13,color:"#111827",outline:"none",background:"#f9fafb",boxSizing:"border-box",...style}}
+    onFocus={e=>e.target.style.borderColor="#3b82f6"} onBlur={e=>e.target.style.borderColor="#e5e7eb"}/>
+);
+
+const Select=({value,onChange,options,style={}})=>(
+  <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"9px 13px",borderRadius:10,border:"1.5px solid #e5e7eb",fontSize:13,color:"#111827",outline:"none",background:"#f9fafb",cursor:"pointer",...style}}>
+    <option value="">—</option>
+    {options.map(o=>Array.isArray(o)?<option key={o[0]} value={o[0]}>{o[1]}</option>:<option key={o} value={o}>{o}</option>)}
+  </select>
+);
+
+const Btn=({children,onClick,color="#3b82f6",outline,small,style={},disabled})=>(
+  <button onClick={onClick} disabled={disabled}
+    style={{padding:small?"6px 14px":"9px 20px",borderRadius:10,border:outline?`1.5px solid ${color}`:"none",background:outline?"transparent":color,color:outline?color:"#fff",fontWeight:700,fontSize:small?12:13,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.5:1,display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap",transition:"transform .1s",...style}}
+    onMouseDown={e=>!disabled&&(e.currentTarget.style.transform="scale(.97)")}
+    onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>{children}</button>
+);
+
+const Modal=({open,onClose,title,children})=>{
+  if(!open) return null;
+  return (
+    <div style={{position:"fixed",inset:0,background:"#0006",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"#fff",borderRadius:20,padding:24,maxWidth:480,width:"100%",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 80px #0003"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+          <span style={{fontWeight:800,fontSize:16,color:"#111827"}}>{title}</span>
+          <button onClick={onClose} style={{border:"none",background:"#f3f4f6",borderRadius:8,padding:6,cursor:"pointer",display:"flex"}}><Icon d={IC.x} size={15} color="#6b7280"/></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const AlertBox=({text,color="orange"})=>(
+  <div style={{background:COLORS[color]?.light,border:`1px solid ${COLORS[color]?.glow}44`,borderRadius:12,padding:"10px 14px",display:"flex",gap:10,alignItems:"flex-start"}}>
+    <Icon d={IC.alert} size={15} color={COLORS[color]?.bg}/>
+    <span style={{fontSize:12,color:COLORS[color]?.text,fontWeight:500}}>{text}</span>
+  </div>
+);
+
+// ─── BMI Widget ───────────────────────────────────────────────────────────────
+const BMIWidget=({profile})=>{
+  const {t}=useLang();
+  const bmi=calcBMI(profile.weight,profile.height);
+  const {cat,color}=bmiCategory(bmi,t);
+  const ideal=idealWeightRange(profile.height);
+  const target=profile.targetWeight||ideal.min;
+  const h=profile.height/100;
+  const bmiTarget=+(target/(h*h)).toFixed(1);
+
+  // Scale: 15 → 40
+  const scaleMin=15,scaleMax=40;
+  const pct=bmi?((bmi-scaleMin)/(scaleMax-scaleMin))*100:0;
+  const targetPct=((bmiTarget-scaleMin)/(scaleMax-scaleMin))*100;
+
+  const zones=[
+    {label:t.bmi.underweight,from:0,to:((18.5-scaleMin)/(scaleMax-scaleMin))*100,color:"#06b6d4"},
+    {label:t.bmi.normal,from:((18.5-scaleMin)/(scaleMax-scaleMin))*100,to:((25-scaleMin)/(scaleMax-scaleMin))*100,color:"#059669"},
+    {label:t.bmi.overweight,from:((25-scaleMin)/(scaleMax-scaleMin))*100,to:((30-scaleMin)/(scaleMax-scaleMin))*100,color:"#f59e0b"},
+    {label:t.bmi.obese,from:((30-scaleMin)/(scaleMax-scaleMin))*100,to:100,color:"#dc2626"},
+  ];
+
+  return (
+    <Card glow={color} style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:.8,marginBottom:4}}>{t.dashboard.bmi}</div>
+          <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+            <span style={{fontSize:36,fontWeight:900,color,fontFamily:"monospace"}}>{bmi||"—"}</span>
+            <span style={{fontSize:13,fontWeight:700,color}}>{cat}</span>
+          </div>
+        </div>
+        <div style={{textAlign:"right",fontSize:12,color:"#6b7280"}}>
+          <div>{t.dashboard.bmiIdeal}: <strong style={{color:"#059669"}}>{ideal.min}–{ideal.max} kg</strong></div>
+          <div>{t.dashboard.targetWeight}: <strong style={{color:"#1d4ed8"}}>{target} kg</strong></div>
+        </div>
+      </div>
+
+      {/* BMI scale bar */}
+      <div style={{position:"relative",height:28}}>
+        <div style={{display:"flex",height:12,borderRadius:8,overflow:"hidden",position:"relative"}}>
+          {zones.map(z=>(
+            <div key={z.label} style={{width:`${z.to-z.from}%`,background:z.color,opacity:.75}}/>
+          ))}
+        </div>
+        {/* Current BMI marker */}
+        {bmi&&(
+          <div style={{position:"absolute",top:-4,left:`${Math.min(96,Math.max(2,pct))}%`,transform:"translateX(-50%)",display:"flex",flexDirection:"column",alignItems:"center",zIndex:2}}>
+            <div style={{width:4,height:20,background:color,borderRadius:2}}/>
+            <div style={{fontSize:8,fontWeight:900,color,whiteSpace:"nowrap",background:"#fff",borderRadius:4,padding:"1px 4px",border:`1px solid ${color}`}}>{bmi}</div>
+          </div>
+        )}
+        {/* Target marker */}
+        <div style={{position:"absolute",top:-4,left:`${Math.min(96,Math.max(2,targetPct))}%`,transform:"translateX(-50%)",display:"flex",flexDirection:"column",alignItems:"center",zIndex:1}}>
+          <div style={{width:3,height:20,background:"#1d4ed8",borderRadius:2,borderStyle:"dashed",borderColor:"#1d4ed8"}}/>
+          <div style={{fontSize:7,fontWeight:700,color:"#1d4ed8",whiteSpace:"nowrap"}}>🎯{target}kg</div>
+        </div>
+        {/* Zone labels */}
+        <div style={{display:"flex",marginTop:4}}>
+          {zones.map(z=>(
+            <div key={z.label} style={{width:`${z.to-z.from}%`,fontSize:7,color:z.color,fontWeight:700,textAlign:"center",overflow:"hidden",whiteSpace:"nowrap"}}>{z.label}</div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+// ─── Line Chart ───────────────────────────────────────────────────────────────
+const LineChart=({data,color="#3b82f6",height=130,unit="",label="c",refLines=[]})=>{
+  const [tip,setTip]=useState(null);
+  if(!data||data.length<2) return null;
+  const W=600,H=height,pad={t:14,b:26,l:38,r:8};
+  const vals=data.map(d=>d.value);
+  const min=Math.min(...vals,...refLines.map(r=>r.value));
+  const max=Math.max(...vals,...refLines.map(r=>r.value));
+  const range=max-min||1;
+  const toX=i=>pad.l+(i/(data.length-1))*(W-pad.l-pad.r);
+  const toY=v=>pad.t+((max-v)/range)*(H-pad.t-pad.b);
+  const pts=data.map((d,i)=>`${toX(i)},${toY(d.value)}`).join(" ");
+  const fill=`${pts} ${toX(data.length-1)},${H-pad.b} ${toX(0)},${H-pad.b}`;
+  const steps=4;
+  const gridVals=Array.from({length:steps+1},(_,i)=>min+(range/steps)*i);
+  return (
+    <div style={{position:"relative"}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height}} preserveAspectRatio="none" onMouseLeave={()=>setTip(null)}>
+        <defs>
+          <linearGradient id={`g${label}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.3"/>
+            <stop offset="100%" stopColor={color} stopOpacity="0.02"/>
+          </linearGradient>
+        </defs>
+        {gridVals.map((v,i)=>(
+          <g key={i}>
+            <line x1={pad.l} y1={toY(v)} x2={W-pad.r} y2={toY(v)} stroke="#e5e7eb" strokeWidth="0.8" strokeDasharray="3,3"/>
+            <text x={pad.l-4} y={toY(v)+3} fontSize="8" fill="#9ca3af" textAnchor="end">{Number(v.toFixed(1))}</text>
+          </g>
+        ))}
+        {refLines.map((rl,i)=>(
+          <g key={i}>
+            <line x1={pad.l} y1={toY(rl.value)} x2={W-pad.r} y2={toY(rl.value)} stroke={rl.color||"#059669"} strokeWidth="1.5" strokeDasharray="6,3" opacity="0.7"/>
+            <text x={W-pad.r+2} y={toY(rl.value)+3} fontSize="8" fill={rl.color||"#059669"} textAnchor="start">{rl.label}</text>
+          </g>
+        ))}
+        <polygon points={fill} fill={`url(#g${label})`}/>
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"/>
+        {data.map((d,i)=>{
+          const skip=data.length>26?8:data.length>13?4:data.length>4?2:1;
+          return (
+            <g key={i}>
+              <circle cx={toX(i)} cy={toY(d.value)} r="4" fill="#fff" stroke={color} strokeWidth="2" style={{cursor:"pointer"}}
+                onMouseEnter={()=>setTip({x:toX(i),y:toY(d.value),...d})}/>
+              {(i%skip===0||i===data.length-1)?<text x={toX(i)} y={H-4} fontSize="7.5" fill="#9ca3af" textAnchor="middle">{d.shortLabel||d.label?.slice(0,5)}</text>:null}
+            </g>
+          );
+        })}
+        {tip&&(
+          <g>
+            <line x1={tip.x} y1={pad.t} x2={tip.x} y2={H-pad.b} stroke={color} strokeWidth="1" strokeDasharray="3,2" opacity="0.5"/>
+            <rect x={Math.min(tip.x+6,W-92)} y={Math.max(tip.y-26,2)} width={88} height={30} rx="5" fill="#111827" opacity="0.92"/>
+            <text x={Math.min(tip.x+50,W-50)} y={Math.max(tip.y-13,14)} fontSize="9" fill="#9ca3af" textAnchor="middle">{tip.label}</text>
+            <text x={Math.min(tip.x+50,W-50)} y={Math.max(tip.y+1,27)} fontSize="11" fill={color} textAnchor="middle" fontWeight="900">{tip.value}{unit}</text>
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+};
+
+const StackedBar=({data,height=110})=>{
+  const [hover,setHover]=useState(null);
+  if(!data||data.length===0) return null;
+  return (
+    <div style={{display:"flex",alignItems:"flex-end",gap:data.length>20?2:4,height,overflowX:"auto"}}>
+      {data.map((d,i)=>{
+        const gymH=Math.round((d.gymDays/7)*(height-22));
+        const restH=height-22-gymH;
+        const isH=hover===i;
+        return (
+          <div key={i} style={{flex:"0 0 auto",minWidth:data.length>26?7:data.length>13?11:18,display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer"}} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)}>
+            {isH&&<div style={{fontSize:8,fontWeight:800,color:"#1d4ed8",whiteSpace:"nowrap",background:"#dbeafe",borderRadius:4,padding:"1px 5px"}}>{d.gymDays}/7</div>}
+            <div style={{width:"100%",display:"flex",flexDirection:"column"}}>
+              <div style={{height:gymH,background:isH?"#1d4ed8":"#3b82f6bb",borderRadius:"3px 3px 0 0"}}/>
+              <div style={{height:restH,background:"#e5e7eb",borderRadius:"0 0 3px 3px"}}/>
+            </div>
+            {data.length<=13&&<div style={{fontSize:7,color:"#9ca3af",whiteSpace:"nowrap"}}>{d.shortLabel||d.label?.slice(0,3)}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const BarChart=({data,color="#3b82f6",height=110,unit=""})=>{
+  const [hover,setHover]=useState(null);
+  if(!data||data.length===0) return null;
+  const max=Math.max(...data.map(d=>d.value),1);
+  return (
+    <div style={{display:"flex",alignItems:"flex-end",gap:data.length>20?2:4,height,overflowX:"auto"}}>
+      {data.map((d,i)=>{
+        const h=Math.max(3,(d.value/max)*(height-26));
+        const isH=hover===i;
+        return (
+          <div key={i} style={{flex:"0 0 auto",minWidth:data.length>26?6:data.length>13?10:16,display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer"}} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)}>
+            {isH&&<div style={{fontSize:8,color:"#111827",fontWeight:800,whiteSpace:"nowrap",background:"#f3f4f6",borderRadius:4,padding:"1px 4px"}}>{d.value}{unit}</div>}
+            <div style={{width:"100%",height:Math.max(3,h),background:isH?color:`${color}99`,borderRadius:"3px 3px 0 0",transition:"background .15s"}}/>
+            {data.length<=13&&<div style={{fontSize:7,color:"#9ca3af",whiteSpace:"nowrap"}}>{d.shortLabel||d.label?.slice(0,3)}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── Weight Log ───────────────────────────────────────────────────────────────
+const WeightLogSection=({week,profile})=>{
+  const {t}=useLang();
+  const ideal=idealWeightRange(profile.height);
+  // Collect daily weights from this week
+  const logData=DAYS.map((d,i)=>{
+    const w=week.days[d]?.weight||null;
+    return {label:d.slice(0,3).toUpperCase(),shortLabel:d.slice(0,3),value:w||profile.weight,date:d};
+  }).filter(d=>d.value>0);
+
+  const bmiData=logData.map(d=>({...d,value:+calcBMI(d.value,profile.height)}));
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>⚖️ {t.reports.weightLog}</div>
+        <LineChart data={logData} color="#7c3aed" height={120} unit="kg" label="wlog"
+          refLines={[{value:ideal.min,color:"#059669",label:"Min"},{value:ideal.max,color:"#f59e0b",label:"Max"},{value:profile.targetWeight||ideal.min,color:"#1d4ed8",label:"🎯"}]}/>
+      </Card>
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>📊 {t.reports.bmiLog}</div>
+        <LineChart data={bmiData} color="#06b6d4" height={100} unit="" label="bmilog"
+          refLines={[{value:18.5,color:"#06b6d4",label:"18.5"},{value:25,color:"#059669",label:"25"},{value:30,color:"#f59e0b",label:"30"}]}/>
+      </Card>
+    </div>
+  );
+};
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+const Dashboard=({week,day,dayData,goals,profile})=>{
+  const {t,lang}=useLang();
+  const allDays=Object.values(week.days);
+  const gymDays=allDays.filter(d=>d.gym).length;
+  const totalMin=allDays.reduce((a,d)=>a+(d.duration||0),0);
+  const totalCal=allDays.reduce((a,d)=>a+(d.caloriesBurned||0),0);
+  const totalProtein=allDays.reduce((a,d)=>a+(d.nutrition?.totalProtein||0),0);
+  const totalWater=allDays.reduce((a,d)=>a+(d.water||0),0);
+  const avgEnergy=+(allDays.reduce((a,d)=>a+d.energy,0)/7).toFixed(1);
+  const suppAdh=Math.round(allDays.reduce((a,d)=>{const t2=Object.values(d.supplements||{}).filter(s=>s.taken).length;return a+(t2/SUPPLEMENTS.length)*100;},0)/7);
+  const bmi=calcBMI(dayData.weight,profile.height);
+  const {cat:bmiCat,color:bmiColor}=bmiCategory(bmi,t);
+  const ideal=idealWeightRange(profile.height);
+  const dayLabel=lang==="tr"?DAY_TR[DAYS.indexOf(day)]:day;
+
+  const alerts=[];
+  if(!dayData.supplements?.creatine?.taken) alerts.push({text:t.alerts.noCreatine,color:"orange"});
+  if((dayData.nutrition?.totalProtein||0)<goals.protein*0.8) alerts.push({text:t.alerts.lowProtein,color:"red"});
+  if((dayData.sleep||0)<7) alerts.push({text:t.alerts.lowSleep,color:"purple"});
+  if((dayData.health?.backPain||0)>=6) alerts.push({text:t.alerts.highPain,color:"red"});
+  if((dayData.water||0)<2) alerts.push({text:t.alerts.lowWater,color:"cyan"});
+
+  const healthScore=Math.max(0,Math.round(
+    (dayData.energy/10)*25+(dayData.motivation/10)*20+
+    ((10-Math.max(dayData.health?.backPain||0,dayData.health?.kneePain||0))/10)*30+
+    ((dayData.sleep||0)/9*25)
+  ));
+  const suppTaken=Object.values(dayData.supplements||{}).filter(s=>s.taken).length;
+  const proteinPct=Math.round((dayData.nutrition?.totalProtein||0)/goals.protein*100);
+  const calPct=Math.round((dayData.nutrition?.totalCalories||0)/goals.calories*100);
+  const waterPct=Math.round((dayData.water||0)/goals.water*100);
+  const workoutPct=Math.round((dayData.duration||0)/goals.gymDuration*100);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      {/* Hero */}
+      <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#1d4ed8 100%)",borderRadius:24,padding:"24px 22px",color:"#fff",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",right:-30,top:-30,width:180,height:180,borderRadius:"50%",background:"radial-gradient(circle,#7c3aed44,transparent)"}}/>
+        <div style={{position:"absolute",right:40,bottom:-50,width:140,height:140,borderRadius:"50%",background:"radial-gradient(circle,#3b82f622,transparent)"}}/>
+        <div style={{position:"absolute",left:-20,bottom:-20,width:100,height:100,borderRadius:"50%",background:"radial-gradient(circle,#06b6d422,transparent)"}}/>
+        <div style={{fontSize:11,fontWeight:700,opacity:.6,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>
+          {t.dashboard.greeting}, {profile.name} · {dayLabel}
+        </div>
+        <div style={{fontSize:24,fontWeight:900,marginBottom:3,letterSpacing:"-.5px"}}>
+          {dayData.gym?`🏋️ ${dayData.workoutType||"Training Day"}`:`🛋️ ${t.dashboard.restDay}`}
+        </div>
+        <div style={{fontSize:12,opacity:.6,marginBottom:20}}>{t.dashboard.weekOf} {week.startDate} · {gymDays}/7 {t.dashboard.gymDays}</div>
+
+        {/* Quick stats row */}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {[
+            {l:"⏱",v:`${dayData.duration}dk`,sub:"workout"},
+            {l:"🔥",v:dayData.caloriesBurned,sub:"kcal"},
+            {l:"🥩",v:`${dayData.nutrition?.totalProtein||0}g`,sub:"protein"},
+            {l:"💧",v:`${dayData.water}L`,sub:"water"},
+            {l:"😴",v:`${dayData.sleep}h`,sub:"sleep"},
+          ].map(({l,v,sub})=>(
+            <div key={sub} style={{background:"rgba(255,255,255,0.1)",borderRadius:14,padding:"8px 12px",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,0.15)",minWidth:70,textAlign:"center"}}>
+              <div style={{fontSize:16}}>{l}</div>
+              <div style={{fontSize:15,fontWeight:900,fontFamily:"monospace",lineHeight:1.1}}>{v}</div>
+              <div style={{fontSize:8,opacity:.6,textTransform:"uppercase",letterSpacing:.8}}>{sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Health score badge */}
+        <div style={{position:"absolute",top:20,right:20,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,0.12)",border:"2px solid rgba(255,255,255,0.25)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}}>
+          <div style={{fontSize:18,fontWeight:900,color:healthScore>70?"#4ade80":healthScore>40?"#fbbf24":"#f87171",fontFamily:"monospace"}}>{healthScore}</div>
+          <div style={{fontSize:7,color:"rgba(255,255,255,.6)",fontWeight:700,textTransform:"uppercase"}}>Score</div>
+        </div>
+      </div>
+
+      {/* Alerts */}
+      {alerts.length>0&&<div style={{display:"flex",flexDirection:"column",gap:6}}>{alerts.map((a,i)=><AlertBox key={i} {...a}/>)}</div>}
+
+      {/* Goal rings */}
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:14}}>🎯 {t.dashboard.weeklyGoals}</div>
+        <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:10}}>
+          <ProgressRing value={dayData.nutrition?.totalProtein||0} max={goals.protein} color="#f59e0b" label={t.dashboard.protein} sub={`${dayData.nutrition?.totalProtein||0}/${goals.protein}g`}/>
+          <ProgressRing value={dayData.nutrition?.totalCalories||0} max={goals.calories} color="#ef4444" label="Kalori" sub={`${dayData.nutrition?.totalCalories||0}/${goals.calories}`}/>
+          <ProgressRing value={dayData.water||0} max={goals.water} color="#06b6d4" label="Su" sub={`${dayData.water||0}/${goals.water}L`}/>
+          <ProgressRing value={dayData.duration||0} max={goals.gymDuration} color="#3b82f6" label="Antrenman" sub={`${dayData.duration||0}/${goals.gymDuration}dk`}/>
+          <ProgressRing value={suppTaken} max={SUPPLEMENTS.length} color="#7c3aed" label="Takviye" sub={`${suppTaken}/${SUPPLEMENTS.length}`}/>
+        </div>
+      </Card>
+
+      {/* BMI */}
+      <BMIWidget profile={{...profile,weight:dayData.weight}}/>
+
+      {/* Weekly bar chart */}
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:12}}>📊 {t.dashboard.weeklyChart}</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:6,height:80}}>
+          {DAYS.map((d,i)=>{
+            const dur=week.days[d]?.duration||0;
+            const maxDur=Math.max(...DAYS.map(dd=>week.days[dd]?.duration||0),1);
+            const isToday=d===day;
+            const dayL=lang==="tr"?DAY_TR[i].slice(0,3):d.slice(0,3).toUpperCase();
+            return (
+              <div key={d} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                <div style={{fontSize:8,color:"#6b7280",fontWeight:700}}>{dur?dur+"m":""}</div>
+                <div style={{width:"100%",height:Math.max(4,(dur/maxDur)*62),background:isToday?"linear-gradient(180deg,#7c3aed,#1d4ed8)":week.days[d]?.gym?"linear-gradient(180deg,#3b82f6,#1d4ed8)":"#e5e7eb",borderRadius:"4px 4px 0 0",transition:"height .3s",boxShadow:isToday?"0 0 10px #7c3aed55":"none"}}/>
+                <div style={{fontSize:8,fontWeight:isToday?800:600,color:isToday?"#7c3aed":"#9ca3af"}}>{dayL}</div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Spine warning */}
+      <Card style={{borderLeft:"4px solid #dc2626",background:"linear-gradient(135deg,#fff5f5,#fff)"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+          <Icon d={IC.spine} size={16} color="#dc2626"/>
+          <span style={{fontWeight:800,color:"#991b1b",fontSize:13}}>{t.spine.title}</span>
+        </div>
+        {[t.spine.w1,t.spine.w2,t.spine.w3,t.spine.w4].map((w,i)=>(
+          <div key={i} style={{fontSize:11,color:"#7f1d1d",display:"flex",gap:6,marginBottom:3}}>
+            <span style={{color:"#dc2626"}}>•</span>{w}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
+
+// ─── Weekly Tracker ───────────────────────────────────────────────────────────
+const WeeklyTracker=({week,onUpdateDay,activeDay,setActiveDay})=>{
+  const {t,lang}=useLang();
+  const dayData=week.days[activeDay]||defaultDay();
+  const update=(field,val)=>onUpdateDay(activeDay,{...dayData,[field]:val});
+  const WTYPES=lang==="tr"?WORKOUT_TYPES_TR:WORKOUT_TYPES_EN;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
+        {DAYS.map((d,i)=>{
+          const dd=week.days[d]; const active=d===activeDay;
+          const lbl=lang==="tr"?DAY_TR[i].slice(0,3):d.slice(0,3).toUpperCase();
+          return (
+            <button key={d} onClick={()=>setActiveDay(d)}
+              style={{flexShrink:0,padding:"8px 12px",borderRadius:12,border:active?"2px solid #3b82f6":"2px solid #e5e7eb",background:active?"#3b82f6":dd?.gym?"#eff6ff":"#f9fafb",color:active?"#fff":dd?.gym?"#1d4ed8":"#6b7280",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+              {lbl}
+              {dd?.gym&&<div style={{width:4,height:4,borderRadius:"50%",background:active?"#fff":"#3b82f6"}}/>}
+            </button>
+          );
+        })}
+      </div>
+      <Card glow={COLORS.blue.glow}>
+        <div style={{fontWeight:800,fontSize:15,marginBottom:14,color:"#111827"}}>📅 {lang==="tr"?DAY_TR[DAYS.indexOf(activeDay)]:activeDay}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{gridColumn:"1/-1"}}><Toggle value={dayData.gym} onChange={v=>update("gym",v)} label={t.weekly.gymToggle}/></div>
+          {dayData.gym&&<>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.type}</div><Select value={dayData.workoutType} onChange={v=>update("workoutType",v)} options={WTYPES}/></div>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.duration}</div><Input type="number" value={dayData.duration} onChange={v=>update("duration",Number(v))} placeholder="60"/></div>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.start}</div><Input type="time" value={dayData.startTime} onChange={v=>update("startTime",v)}/></div>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.end}</div><Input type="time" value={dayData.endTime} onChange={v=>update("endTime",v)}/></div>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.calBurned}</div><Input type="number" value={dayData.caloriesBurned} onChange={v=>update("caloriesBurned",Number(v))} placeholder="400"/></div>
+          </>}
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.water}</div><Input type="number" value={dayData.water} onChange={v=>update("water",Number(v))} placeholder="2.5"/></div>
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.bodyWeight}</div><Input type="number" value={dayData.weight} onChange={v=>update("weight",Number(v))} placeholder="75"/></div>
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.sleep}</div><Input type="number" value={dayData.sleep} onChange={v=>update("sleep",Number(v))} placeholder="7.5"/></div>
+        </div>
+        <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:12}}>
+          {[{f:"energy",l:t.weekly.energy,c:"#f59e0b"},{f:"motivation",l:t.weekly.motivation,c:"#ef4444"},{f:"pain",l:t.weekly.pain,c:"#7c3aed"}].map(({f,l,c})=>(
+            <div key={f}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>{l}</span>
+                <Badge color={f==="pain"&&dayData[f]>5?"red":"blue"}>{dayData[f]}/10</Badge>
+              </div>
+              <Slider value={dayData[f]} onChange={v=>update(f,v)} color={c}/>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:14}}>
+          <div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.weekly.notes}</div>
+          <textarea value={dayData.notes} onChange={e=>update("notes",e.target.value)} placeholder={t.weekly.notesPlaceholder}
+            style={{width:"100%",padding:"10px 13px",borderRadius:12,border:"1.5px solid #e5e7eb",fontSize:13,resize:"vertical",minHeight:70,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─── Workout ──────────────────────────────────────────────────────────────────
+const WorkoutTab=({week,activeDay,onUpdateDay})=>{
+  const {t}=useLang();
+  const dayData=week.days[activeDay]||defaultDay();
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState({name:"",equipment:"",sets:3,reps:10,weight:0,rpe:7,rest:90,note:"",spineRisk:false});
+  const HIGH_RISK=["Deadlift","Squat","Romanian","Good Morning","Stiff Leg","Deadlift","Squat"];
+  const isHighRisk=HIGH_RISK.some(h=>form.name.toLowerCase().includes(h.toLowerCase()));
+  const addEx=()=>{
+    if(!form.name) return;
+    onUpdateDay(activeDay,{...dayData,exercises:[...(dayData.exercises||[]),{...form,id:Date.now()}]});
+    setModal(false); setForm({name:"",equipment:"",sets:3,reps:10,weight:0,rpe:7,rest:90,note:"",spineRisk:false});
+  };
+  const totalVolume=(dayData.exercises||[]).reduce((a,e)=>a+e.sets*e.reps*e.weight,0);
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontWeight:800,fontSize:17,color:"#111827"}}>🏋️ {t.workout.title}</div>
+          <div style={{fontSize:12,color:"#6b7280"}}>{dayData.exercises?.length||0} ex · {totalVolume}kg {t.workout.volume}</div>
+        </div>
+        <Btn onClick={()=>setModal(true)} color="#1d4ed8"><Icon d={IC.plus} size={15} color="#fff"/>{t.workout.add}</Btn>
+      </div>
+      {(dayData.exercises||[]).length===0?(
+        <Card style={{textAlign:"center",padding:40,color:"#9ca3af"}}>
+          <div style={{fontSize:36,marginBottom:8}}>🏋️</div>
+          <div style={{fontWeight:700}}>{t.workout.noEx}</div>
+        </Card>
+      ):(dayData.exercises||[]).map(ex=>(
+        <Card key={ex.id}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontWeight:800,fontSize:14,color:"#111827",display:"flex",gap:8,alignItems:"center"}}>
+                {ex.name}{ex.spineRisk&&<Badge color="red">⚠️ Spine</Badge>}
+              </div>
+              <div style={{fontSize:11,color:"#9ca3af"}}>{ex.equipment}</div>
+            </div>
+            <button onClick={()=>onUpdateDay(activeDay,{...dayData,exercises:dayData.exercises.filter(e=>e.id!==ex.id)})} style={{border:"none",background:"#fee2e2",borderRadius:8,padding:6,cursor:"pointer",display:"flex"}}><Icon d={IC.trash} size={13} color="#dc2626"/></button>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+            {[["Sets",ex.sets],["Reps",ex.reps],["Weight",`${ex.weight}kg`],["RPE",`${ex.rpe}/10`],["Rest",`${ex.rest}s`]].map(([l,v])=>(
+              <div key={l} style={{background:"#f3f4f6",borderRadius:8,padding:"3px 10px",fontSize:12}}><span style={{color:"#9ca3af"}}>{l}: </span><strong>{v}</strong></div>
+            ))}
+          </div>
+          <div style={{fontSize:12,color:"#6b7280",marginTop:6}}>{t.workout.volume}: <strong style={{color:"#1d4ed8"}}>{ex.sets*ex.reps*ex.weight}kg</strong></div>
+        </Card>
+      ))}
+      <Modal open={modal} onClose={()=>setModal(false)} title={t.workout.addBtn}>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.workout.name}</div><Input value={form.name} onChange={v=>setForm(f=>({...f,name:v}))} placeholder={t.workout.namePH}/></div>
+          {isHighRisk&&<AlertBox text={t.workout.spineWarn} color="red"/>}
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.workout.equipment}</div><Select value={form.equipment} onChange={v=>setForm(f=>({...f,equipment:v}))} options={EQUIPMENT}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            {["sets","reps","weight"].map(field=>(
+              <div key={field}><div style={{fontSize:11,fontWeight:600,color:"#6b7280",marginBottom:4,textTransform:"capitalize"}}>{field}</div><Input type="number" value={form[field]} onChange={v=>setForm(f=>({...f,[field]:Number(v)}))}/></div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:4}}>{t.workout.rpe}: {form.rpe}/10</div><Slider value={form.rpe} onChange={v=>setForm(f=>({...f,rpe:v}))}/></div>
+            <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.workout.rest}</div><Input type="number" value={form.rest} onChange={v=>setForm(f=>({...f,rest:Number(v)}))}/></div>
+          </div>
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.workout.note}</div><Input value={form.note} onChange={v=>setForm(f=>({...f,note:v}))} placeholder={t.workout.notePH}/></div>
+          <Toggle value={form.spineRisk} onChange={v=>setForm(f=>({...f,spineRisk:v}))} label={t.workout.spineRisk}/>
+          <Btn onClick={addEx} color="#1d4ed8" style={{justifyContent:"center"}}><Icon d={IC.plus} size={15} color="#fff"/>{t.workout.addBtn}</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── Supplements ──────────────────────────────────────────────────────────────
+const SupplementsTab=({week,activeDay,onUpdateDay})=>{
+  const {t,lang}=useLang();
+  const dayData=week.days[activeDay]||defaultDay();
+  const supps=dayData.supplements||{};
+  const updateSupp=(key,field,val)=>onUpdateDay(activeDay,{...dayData,supplements:{...supps,[key]:{...supps[key],[field]:val}}});
+  const takenCount=SUPPLEMENTS.filter(s=>supps[s.key]?.taken).length;
+  const weekAdh=Math.round(DAYS.reduce((a,d)=>{const t2=Object.values(week.days[d]?.supplements||{}).filter(s=>s.taken).length;return a+(t2/SUPPLEMENTS.length)*100;},0)/7);
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <Card glow={COLORS.green.glow}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:14,color:"#111827"}}>💊 {t.supps.title}</div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <Badge color={takenCount===SUPPLEMENTS.length?"green":takenCount>2?"orange":"red"}>{takenCount}/{SUPPLEMENTS.length} {t.supps.taken}</Badge>
+            <Badge color="blue">{weekAdh}% week</Badge>
+          </div>
+        </div>
+        <ProgressBar value={takenCount} max={SUPPLEMENTS.length} color="#059669" height={10}/>
+      </Card>
+      {SUPPLEMENTS.map(({key,labelTR,labelEN,unit,color,def})=>{
+        const s=supps[key]||{taken:false,amount:def,time:""};
+        const label=lang==="tr"?labelTR:labelEN;
+        return (
+          <Card key={key} glow={s.taken?COLORS[color]?.glow:undefined}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:34,height:34,borderRadius:10,background:COLORS[color]?.light,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon d={IC.pill} size={16} color={COLORS[color]?.bg}/></div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13,color:"#111827"}}>{label}</div>
+                  <div style={{fontSize:11,color:"#9ca3af"}}>{s.amount} {unit}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <Input type="time" value={s.time} onChange={v=>updateSupp(key,"time",v)} style={{width:100,padding:"5px 8px",fontSize:12}}/>
+                <button onClick={()=>updateSupp(key,"taken",!s.taken)} style={{padding:"7px 14px",borderRadius:10,border:"none",background:s.taken?COLORS[color]?.bg:"#e5e7eb",color:s.taken?"#fff":"#6b7280",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                  {s.taken?`✓ ${t.supps.taken}`:t.supps.mark}
+                </button>
+              </div>
+            </div>
+            <div style={{marginTop:10}}><Input type="number" value={s.amount} onChange={v=>updateSupp(key,"amount",Number(v))} style={{maxWidth:130}}/></div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── Nutrition ────────────────────────────────────────────────────────────────
+const NutritionTab=({week,activeDay,onUpdateDay,goals})=>{
+  const {t,lang}=useLang();
+  const dayData=week.days[activeDay]||defaultDay();
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState({name:"",mealType:"",calories:0,protein:0,carbs:0,fat:0});
+  const meals=dayData.nutrition?.meals||[];
+  const totals=meals.reduce((a,m)=>({cal:a.cal+(m.calories||0),protein:a.protein+(m.protein||0),carbs:a.carbs+(m.carbs||0),fat:a.fat+(m.fat||0)}),{cal:0,protein:0,carbs:0,fat:0});
+  const MTYPES=lang==="tr"?MEAL_TYPES_TR:MEAL_TYPES_EN;
+  const addMeal=()=>{
+    if(!form.name) return;
+    const newMeals=[...meals,{...form,id:Date.now()}];
+    const nt=newMeals.reduce((a,m)=>({totalCalories:a.totalCalories+(m.calories||0),totalProtein:a.totalProtein+(m.protein||0),totalCarbs:a.totalCarbs+(m.carbs||0),totalFat:a.totalFat+(m.fat||0)}),{totalCalories:0,totalProtein:0,totalCarbs:0,totalFat:0});
+    onUpdateDay(activeDay,{...dayData,nutrition:{meals:newMeals,...nt}});
+    setModal(false); setForm({name:"",mealType:"",calories:0,protein:0,carbs:0,fat:0});
+  };
+  const removeMeal=id=>{
+    const newMeals=meals.filter(m=>m.id!==id);
+    const nt=newMeals.reduce((a,m)=>({totalCalories:a.totalCalories+(m.calories||0),totalProtein:a.totalProtein+(m.protein||0),totalCarbs:a.totalCarbs+(m.carbs||0),totalFat:a.totalFat+(m.fat||0)}),{totalCalories:0,totalProtein:0,totalCarbs:0,totalFat:0});
+    onUpdateDay(activeDay,{...dayData,nutrition:{meals:newMeals,...nt}});
+  };
+  const surplus=totals.cal-goals.calories;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:12}}>📊 {t.nutrition.progress}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,fontWeight:600}}>{t.nutrition.proteinGoal}</span><span style={{fontSize:11,color:"#6b7280"}}>{Math.round(totals.protein)}g / {goals.protein}g</span></div>
+            <ProgressBar value={totals.protein} max={goals.protein} color="#f59e0b" height={12}/>
+          </div>
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,fontWeight:600}}>{t.nutrition.calGoal}</span><span style={{fontSize:11,color:"#6b7280"}}>{Math.round(totals.cal)} / {goals.calories} kcal</span></div>
+            <ProgressBar value={totals.cal} max={goals.calories} color="#ef4444" height={12}/>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginTop:12}}>
+          {[["🔥",Math.round(totals.cal),"kcal"],["🥩",Math.round(totals.protein),"g prot"],["🍞",Math.round(totals.carbs),"g carb"],["🥑",Math.round(totals.fat),"g fat"]].map(([e,v,u])=>(
+            <div key={u} style={{textAlign:"center",background:"#f9fafb",borderRadius:12,padding:"8px 4px"}}>
+              <div style={{fontSize:16}}>{e}</div>
+              <div style={{fontSize:16,fontWeight:900,color:"#111827",fontFamily:"monospace"}}>{v}</div>
+              <div style={{fontSize:9,color:"#9ca3af"}}>{u}</div>
+            </div>
+          ))}
+        </div>
+        {surplus!==0&&<div style={{marginTop:10}}><AlertBox text={surplus>0?t.alerts.calSurplus+` (+${surplus}kcal)`:t.alerts.calDeficit+` (${surplus}kcal)`} color={surplus>0?"green":"orange"}/></div>}
+      </Card>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827"}}>🍽️ {t.nutrition.title} ({meals.length})</div>
+        <Btn onClick={()=>setModal(true)} color="#1d4ed8"><Icon d={IC.plus} size={15} color="#fff"/>{t.nutrition.add}</Btn>
+      </div>
+      {meals.length===0?(
+        <Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><div style={{fontSize:32,marginBottom:6}}>🍽️</div><div style={{fontWeight:700}}>{t.nutrition.noMeals}</div></Card>
+      ):meals.map(meal=>(
+        <Card key={meal.id}>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <div><div style={{fontWeight:700,fontSize:14}}>{meal.name}</div><div style={{fontSize:11,color:"#9ca3af"}}>{meal.mealType}</div></div>
+            <button onClick={()=>removeMeal(meal.id)} style={{border:"none",background:"#fee2e2",borderRadius:8,padding:6,cursor:"pointer",display:"flex"}}><Icon d={IC.trash} size={13} color="#dc2626"/></button>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+            {[["Cal",meal.calories,"kcal"],["Prot",meal.protein,"g"],["Carb",meal.carbs,"g"],["Fat",meal.fat,"g"]].map(([l,v,u])=>(
+              <div key={l} style={{background:"#f3f4f6",borderRadius:8,padding:"3px 10px",fontSize:12}}><span style={{color:"#9ca3af"}}>{l}: </span><strong>{v}{u}</strong></div>
+            ))}
+          </div>
+        </Card>
+      ))}
+      <Modal open={modal} onClose={()=>setModal(false)} title={t.nutrition.addBtn}>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.nutrition.name}</div><Input value={form.name} onChange={v=>setForm(f=>({...f,name:v}))} placeholder={t.nutrition.namePH}/></div>
+          <div><div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.nutrition.mealType}</div><Select value={form.mealType} onChange={v=>setForm(f=>({...f,mealType:v}))} options={MTYPES}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {[["calories",t.nutrition.cal],["protein",t.nutrition.protein],["carbs",t.nutrition.carbs],["fat",t.nutrition.fat]].map(([field,label])=>(
+              <div key={field}><div style={{fontSize:11,fontWeight:600,color:"#6b7280",marginBottom:4}}>{label}</div><Input type="number" value={form[field]} onChange={v=>setForm(f=>({...f,[field]:Number(v)}))}/></div>
+            ))}
+          </div>
+          <Btn onClick={addMeal} color="#1d4ed8" style={{justifyContent:"center"}}><Icon d={IC.plus} size={15} color="#fff"/>{t.nutrition.addBtn}</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── Health ───────────────────────────────────────────────────────────────────
+const HealthTab=({week,activeDay,onUpdateDay})=>{
+  const {t}=useLang();
+  const dayData=week.days[activeDay]||defaultDay();
+  const health=dayData.health||{};
+  const update=(field,val)=>onUpdateDay(activeDay,{...dayData,health:{...health,[field]:val}});
+  const painLevel=Math.max(health.backPain||0,health.kneePain||0,health.muscleSoreness||0);
+  const recoveryScore=Math.max(0,Math.round(100-painLevel*5-(health.fatigue||5)*3-(health.stress||5)*2));
+  const readyColor=recoveryScore>70?"#059669":recoveryScore>40?"#d97706":"#dc2626";
+  const readyText=recoveryScore>70?t.health.ready:recoveryScore>40?t.health.moderate:t.health.rest;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <Card glow={readyColor} style={{textAlign:"center",background:`linear-gradient(135deg,${readyColor}11,#fff)`}}>
+        <div style={{fontSize:11,color:"#6b7280",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{t.health.recovery}</div>
+        <div style={{fontSize:64,fontWeight:900,color:readyColor,fontFamily:"monospace",lineHeight:1}}>{recoveryScore}</div>
+        <div style={{fontSize:13,color:"#6b7280",marginTop:4}}>{readyText}</div>
+        <div style={{marginTop:10}}><ProgressBar value={recoveryScore} max={100} color={readyColor} height={8}/></div>
+      </Card>
+      <Card>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,color:"#111827"}}>😴 {t.health.sleep}</div>
+        {[{f:"sleepQuality",l:t.health.sleepQ,c:"#7c3aed"},{f:"fatigue",l:t.health.fatigue,c:"#ef4444"},{f:"stress",l:t.health.stress,c:"#f59e0b"}].map(({f,l,c})=>(
+          <div key={f} style={{marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,fontWeight:600}}>{l}</span><span style={{fontSize:12,color:"#6b7280"}}>{health[f]||5}/10</span></div>
+            <Slider value={health[f]||5} onChange={v=>update(f,v)} color={c}/>
+          </div>
+        ))}
+      </Card>
+      <Card style={{borderLeft:"4px solid #dc2626"}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:12,color:"#991b1b"}}>🦴 {t.health.pain}</div>
+        {painLevel>=7&&<AlertBox text={t.health.critical} color="red"/>}
+        {[{f:"backPain",l:`🔴 ${t.health.back}`},{f:"kneePain",l:`🟠 ${t.health.knee}`},{f:"muscleSoreness",l:`🟡 ${t.health.muscle}`}].map(({f,l})=>(
+          <div key={f} style={{marginBottom:14,marginTop:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{fontSize:13,fontWeight:600}}>{l}</span>
+              <Badge color={(health[f]||0)>=6?"red":(health[f]||0)>=3?"orange":"green"}>{health[f]||0}/10</Badge>
+            </div>
+            <Slider value={health[f]||0} onChange={v=>update(f,v)} color="#dc2626"/>
+          </div>
+        ))}
+      </Card>
+      <Card>
+        <Toggle value={health.stretching||false} onChange={v=>update("stretching",v)} label={t.health.stretching}/>
+        <div style={{marginTop:14}}>
+          <div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{t.health.recoveryNotes}</div>
+          <textarea value={health.recoveryNotes||""} onChange={e=>update("recoveryNotes",e.target.value)} placeholder={t.health.recoveryPH}
+            style={{width:"100%",padding:"10px 13px",borderRadius:12,border:"1.5px solid #e5e7eb",fontSize:13,resize:"vertical",minHeight:72,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+const generateHistory=(currentWeek)=>{
+  const seed=(n,base,v)=>base+Math.sin(n*2.3)*v+Math.cos(n*1.7)*v*0.5;
+  const weeks=[];
+  const now=new Date(currentWeek.startDate||new Date());
+  const curDays=DAYS.map(d=>currentWeek.days[d]||defaultDay());
+  weeks.push({
+    label:"This Week",startDate:now.toISOString().slice(0,10),
+    gymDays:curDays.filter(d=>d.gym).length,
+    totalMin:curDays.reduce((a,d)=>a+(d.duration||0),0),
+    avgWeight:+(curDays.reduce((a,d)=>a+(d.weight||75),0)/7).toFixed(1),
+    avgEnergy:+(curDays.reduce((a,d)=>a+(d.energy||5),0)/7).toFixed(1),
+    avgPain:+(curDays.reduce((a,d)=>a+Math.max(d.health?.backPain||0,d.health?.kneePain||0),0)/7).toFixed(1),
+    suppRate:Math.round(curDays.reduce((a,d)=>a+Object.values(d.supplements||{}).filter(s=>s.taken).length,0)/(7*SUPPLEMENTS.length)*100),
+    protein:Math.round(curDays.reduce((a,d)=>a+(d.nutrition?.totalProtein||0),0)/7),
+  });
+  for(let w=1;w<=51;w++){
+    const d=new Date(now); d.setDate(d.getDate()-w*7);
+    const p=Math.max(0,1-w*0.012);
+    weeks.push({
+      label:w===1?"Last Week":`${w}w ago`,startDate:d.toISOString().slice(0,10),
+      gymDays:Math.round(Math.max(1,Math.min(7,seed(w,4.5+p*1.5,1.2)))),
+      totalMin:Math.round(Math.max(0,seed(w,220+p*60,40))),
+      avgWeight:+(75.5-p*0.8+seed(w,0,0.4)).toFixed(1),
+      avgEnergy:+(Math.max(1,Math.min(10,seed(w,5.5+p*1.5,1.2)))).toFixed(1),
+      avgPain:+(Math.max(0,Math.min(10,seed(w,3.5-p*1.5,1.5)))).toFixed(1),
+      suppRate:Math.round(Math.max(10,Math.min(100,seed(w,60+p*25,15)))),
+      protein:Math.round(Math.max(60,seed(w,110+p*40,20))),
+    });
+  }
+  return weeks.reverse();
+};
+const PERIODS=[{id:"week",weeks:1},{id:"month",weeks:4},{id:"3month",weeks:13},{id:"6month",weeks:26},{id:"year",weeks:52}];
+
+const ReportsTab=({week,profile})=>{
+  const {t,lang}=useLang();
+  const [period,setPeriod]=useState("month");
+  const allHistory=generateHistory(week);
+  const periodDef=PERIODS.find(p=>p.id===period);
+  const sliced=allHistory.slice(-periodDef.weeks);
+  const enriched=sliced.map((w,i)=>{
+    const d=new Date(w.startDate);
+    const mon=d.toLocaleString(lang==="tr"?"tr-TR":"en-US",{month:"short"});
+    return {...w,shortLabel:period==="week"?w.label?.slice(0,3):period==="month"?`W${i+1}`:mon};
+  });
+  const curDays=DAYS.map(d=>week.days[d]||defaultDay());
+  const bestDay=curDays.filter(d=>d.gym).sort((a,b)=>(b.duration||0)-(a.duration||0))[0];
+  const sumGym=enriched.reduce((a,w)=>a+w.gymDays,0);
+  const avgWeight=+(enriched.reduce((a,w)=>a+w.avgWeight,0)/enriched.length).toFixed(1);
+  const avgEnergy=+(enriched.reduce((a,w)=>a+w.avgEnergy,0)/enriched.length).toFixed(1);
+  const avgSupp=Math.round(enriched.reduce((a,w)=>a+w.suppRate,0)/enriched.length);
+  const weightChange=+(enriched[enriched.length-1]?.avgWeight-enriched[0]?.avgWeight).toFixed(1);
+  const painTrend=+(enriched[enriched.length-1]?.avgPain-enriched[0]?.avgPain).toFixed(1);
+  const ideal=idealWeightRange(profile.height);
+  const CH=130;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <Card style={{padding:"14px 16px"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#6b7280",marginBottom:10,textTransform:"uppercase",letterSpacing:.8}}>📅 {t.reports.period}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {PERIODS.map(p=>(
+            <button key={p.id} onClick={()=>setPeriod(p.id)}
+              style={{padding:"7px 15px",borderRadius:10,border:"none",fontWeight:700,fontSize:12,cursor:"pointer",transition:"all .18s",
+                background:period===p.id?"linear-gradient(135deg,#1d4ed8,#7c3aed)":"#f3f4f6",
+                color:period===p.id?"#fff":"#6b7280",boxShadow:period===p.id?"0 2px 12px #1d4ed844":"none",
+                transform:period===p.id?"scale(1.06)":"scale(1)"}}>
+              {t.periods[p.id]}
+            </button>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:6}}>{enriched.length} {t.reports.weeks} · {enriched[0]?.startDate} → {enriched[enriched.length-1]?.startDate}</div>
+      </Card>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+        {[
+          {label:t.reports.gymDays,value:sumGym,unit:"gün",color:"#1d4ed8",emoji:"🏋️"},
+          {label:t.reports.avgWeight,value:avgWeight,unit:"kg",color:"#7c3aed",emoji:"⚖️"},
+          {label:t.reports.weightChange,value:(weightChange>0?"+":"")+weightChange,unit:"kg",color:weightChange<=0?"#059669":"#dc2626",emoji:"📉"},
+          {label:t.reports.avgEnergy,value:avgEnergy,unit:"/10",color:"#f59e0b",emoji:"⚡"},
+          {label:t.reports.suppAvg,value:avgSupp,unit:"%",color:"#059669",emoji:"💊"},
+          {label:t.reports.painDelta,value:(painTrend>0?"+":"")+painTrend,unit:"/10",color:painTrend<=0?"#059669":"#dc2626",emoji:"🦴"},
+        ].map(({label,value,unit,color,emoji})=>(
+          <div key={label} style={{background:"#fff",borderRadius:14,padding:"12px 8px",textAlign:"center",border:"1.5px solid #f1f5f9",boxShadow:"0 2px 8px #0000000a"}}>
+            <div style={{fontSize:18}}>{emoji}</div>
+            <div style={{fontSize:20,fontWeight:900,color,fontFamily:"monospace",lineHeight:1.2}}>{value}</div>
+            <div style={{fontSize:9,color:"#9ca3af",fontWeight:600}}>{unit}</div>
+            <div style={{fontSize:9,color:"#6b7280",fontWeight:600,marginTop:1}}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {bestDay&&<AlertBox text={`🏆 ${t.reports.bestDay}: ${lang==="tr"?DAY_TR[DAYS.indexOf(bestDay.day||"Monday")]||bestDay.day:bestDay.day} — ${bestDay.duration}dk`} color="green"/>}
+
+      {/* Weight log with ideal range ref lines */}
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>⚖️ {t.reports.weightChart}</div>
+        <LineChart data={enriched.map(w=>({label:w.label,shortLabel:w.shortLabel,value:w.avgWeight}))} color="#7c3aed" height={CH} unit="kg" label="wt"
+          refLines={[{value:ideal.min,color:"#059669",label:"Min"},{value:ideal.max,color:"#f59e0b",label:"Max"},{value:profile.targetWeight||ideal.min,color:"#1d4ed8",label:"🎯"}]}/>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,padding:"7px 12px",background:weightChange<=0?"#d1fae5":"#fee2e2",borderRadius:10}}>
+          <span style={{fontSize:12,fontWeight:600,color:weightChange<=0?"#065f46":"#991b1b"}}>{weightChange<=0?"📉":"📈"} {t.reports.weightChange}</span>
+          <span style={{fontSize:13,fontWeight:900,color:weightChange<=0?"#059669":"#dc2626"}}>{weightChange>0?"+":""}{weightChange} kg</span>
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:14,color:"#111827"}}>🏋️ {t.reports.gymChart}</div>
+          <div style={{display:"flex",gap:8}}>
+            {[["#3b82f6bb","Gym"],["#e5e7eb","Rest"]].map(([c,l])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"#6b7280"}}><div style={{width:10,height:10,background:c,borderRadius:2}}/>{l}</div>
+            ))}
+          </div>
+        </div>
+        <StackedBar data={enriched} height={CH}/>
+      </Card>
+
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>⏱️ {t.reports.workoutChart}</div>
+        <LineChart data={enriched.map(w=>({label:w.label,shortLabel:w.shortLabel,value:w.totalMin}))} color="#3b82f6" height={CH} unit="dk" label="wk"/>
+      </Card>
+
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>⚡ {t.reports.energyChart}</div>
+        <LineChart data={enriched.map(w=>({label:w.label,shortLabel:w.shortLabel,value:w.avgEnergy}))} color="#f59e0b" height={CH} unit="/10" label="en"/>
+      </Card>
+
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>🦴 {t.reports.painChart}</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:enriched.length>20?2:4,height:CH,overflowX:"auto"}}>
+          {enriched.map((d,i)=>{
+            const pain=d.avgPain; const h=Math.max(3,(pain/10)*(CH-22));
+            const col=pain>6?"#dc2626":pain>3?"#f59e0b":"#10b981";
+            return (
+              <div key={i} style={{flex:"0 0 auto",minWidth:enriched.length>26?7:11,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                <div style={{flex:1,display:"flex",alignItems:"flex-end"}}><div style={{width:"100%",height:h,background:`${col}bb`,borderRadius:"3px 3px 0 0"}}/></div>
+                {enriched.length<=13&&<div style={{fontSize:7,color:"#9ca3af",whiteSpace:"nowrap"}}>{d.shortLabel}</div>}
+              </div>
+            );
+          })}
+        </div>
+        {painTrend<=-0.5&&<div style={{marginTop:8}}><AlertBox text={`✅ ${t.reports.painGood}`} color="green"/></div>}
+        {painTrend>=1&&<div style={{marginTop:8}}><AlertBox text={`⚠️ ${t.reports.painBad}`} color="red"/></div>}
+      </Card>
+
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>💊 {t.reports.suppChart}</div>
+        <BarChart data={enriched.map(w=>({label:w.label,shortLabel:w.shortLabel,value:w.suppRate}))} color="#059669" height={CH} unit="%"/>
+      </Card>
+
+      <Card>
+        <div style={{fontWeight:800,fontSize:14,color:"#111827",marginBottom:10}}>🥩 {t.reports.proteinChart}</div>
+        <LineChart data={enriched.map(w=>({label:w.label,shortLabel:w.shortLabel,value:w.protein}))} color="#f97316" height={CH} unit="g" label="pr"/>
+      </Card>
+
+      <WeightLogSection week={week} profile={profile}/>
+
+      <Card style={{background:"linear-gradient(135deg,#1e1b4b,#312e81)",border:"none"}}>
+        <div style={{fontWeight:800,fontSize:14,color:"#c7d2fe",marginBottom:12}}>🤖 {t.reports.analysis}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[
+            {icon:"🏆",text:`${enriched.length} haftada ${sumGym} gym günü.`,color:"#a5b4fc"},
+            {icon:weightChange<=0?"✅":"📈",text:`Kilo ${weightChange>0?`+${weightChange}kg arttı`:`${Math.abs(weightChange)}kg azaldı`}.`,color:"#bbf7d0"},
+            {icon:avgSupp>70?"💊✅":"💊⚠️",text:`Supplement uyum: %${avgSupp} — ${avgSupp>70?"Çok iyi!":"Artır."}`,color:"#fde68a"},
+            {icon:painTrend<=0?"🦴✅":"🦴⚠️",text:`Ağrı ${painTrend<=0?"azalıyor":"artıyor"}. ${painTrend>0?"Recovery öncelikli!":""}`,color:painTrend<=0?"#bbf7d0":"#fecaca"},
+          ].map(({icon,text,color},i)=>(
+            <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start"}}><span style={{fontSize:16}}>{icon}</span><span style={{fontSize:12,color,fontWeight:500,lineHeight:1.5}}>{text}</span></div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+const SettingsTab=({week,goals,onGoalsChange,onReset,onExport,onImport,profile,onProfileChange,lang,setLang})=>{
+  const {t}=useLang();
+  const [confirmReset,setConfirmReset]=useState(false);
+  const fileRef=useRef(null);
+  const smartGoals=calcSmartGoals(profile);
+
+  const ACTIVITY=[
+    [1.2,lang==="tr"?"Sedanter (Masa başı)":"Sedentary (desk job)"],
+    [1.375,lang==="tr"?"Hafif aktif (1-3 gün/hafta)":"Lightly active (1-3 days/wk)"],
+    [1.55,lang==="tr"?"Orta aktif (3-5 gün/hafta)":"Moderately active (3-5 days/wk)"],
+    [1.725,lang==="tr"?"Çok aktif (6-7 gün/hafta)":"Very active (6-7 days/wk)"],
+    [1.9,lang==="tr"?"Ekstra aktif (ağır iş+spor)":"Extra active (hard job+sport)"],
+  ];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {/* Language */}
+      <Card glow={COLORS.purple.glow}>
+        <div style={{fontWeight:800,fontSize:15,marginBottom:14,color:"#111827",display:"flex",alignItems:"center",gap:8}}>
+          <Icon d={IC.globe} size={18} color="#7c3aed"/>{t.settings.language}
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          {[["tr","🇹🇷 Türkçe"],["en","🇬🇧 English"]].map(([code,label])=>(
+            <button key={code} onClick={()=>setLang(code)}
+              style={{flex:1,padding:"10px 16px",borderRadius:12,border:"none",fontWeight:700,fontSize:13,cursor:"pointer",transition:"all .18s",
+                background:lang===code?"linear-gradient(135deg,#7c3aed,#1d4ed8)":"#f3f4f6",
+                color:lang===code?"#fff":"#6b7280",boxShadow:lang===code?"0 2px 12px #7c3aed44":"none"}}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Profile */}
+      <Card glow={COLORS.blue.glow}>
+        <div style={{fontWeight:800,fontSize:15,marginBottom:14,color:"#111827",display:"flex",alignItems:"center",gap:8}}>
+          <Icon d={IC.user} size={18} color="#1d4ed8"/>{t.settings.profile}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {[
+            {f:"name",  l:t.settings.name,   e:"🙋",type:"text"},
+            {f:"age",   l:t.settings.age,    e:"🎂",type:"number"},
+            {f:"height",l:t.settings.height, e:"📏",type:"number"},
+            {f:"weight",l:t.settings.weight, e:"⚖️",type:"number"},
+            {f:"targetWeight",l:lang==="tr"?"Hedef Kilo (kg)":"Target Weight (kg)",e:"🎯",type:"number"},
+            {f:"goal",  l:t.settings.goal,   e:"💪",type:"text"},
+            {f:"notes", l:t.settings.notes,  e:"⚠️",type:"text"},
+          ].map(({f,l,e,type})=>(
+            <div key={f}>
+              <div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{e} {l}</div>
+              <Input type={type} value={profile[f]??""} onChange={v=>onProfileChange(f,type==="number"?Number(v):v)} placeholder={l}/>
+            </div>
+          ))}
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>🏃 {lang==="tr"?"Aktivite Seviyesi":"Activity Level"}</div>
+            <Select value={profile.activityLevel||1.55} onChange={v=>onProfileChange("activityLevel",Number(v))} options={ACTIVITY}/>
+          </div>
+        </div>
+        {/* BMI summary */}
+        {profile.height&&profile.weight&&(()=>{
+          const bmi=calcBMI(profile.weight,profile.height);
+          const {cat,color}=bmiCategory(bmi,t);
+          const ideal=idealWeightRange(profile.height);
+          return (
+            <div style={{marginTop:14,padding:"12px 14px",background:"#f0fdf4",borderRadius:12,border:"1px solid #bbf7d0"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#065f46"}}>📊 BMI: <strong style={{color}}>{bmi} — {cat}</strong></div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:4}}>{t.dashboard.bmiIdeal}: {ideal.min}–{ideal.max} kg · {lang==="tr"?"Hedef":"Target"}: {profile.targetWeight||ideal.min} kg</div>
+            </div>
+          );
+        })()}
+      </Card>
+
+      {/* Smart Goals */}
+      <Card glow={COLORS.orange.glow}>
+        <div style={{fontWeight:800,fontSize:15,marginBottom:14,color:"#111827",display:"flex",alignItems:"center",gap:8}}>
+          <Icon d={IC.target} size={18} color="#d97706"/>{t.settings.smartGoals}
+        </div>
+        {smartGoals&&(
+          <div style={{background:"#fffbeb",borderRadius:12,padding:"12px 14px",marginBottom:14,fontSize:12,color:"#92400e"}}>
+            <div style={{fontWeight:700,marginBottom:6}}>🧮 Mifflin-St Jeor hesabı:</div>
+            <div>TDEE: <strong>{smartGoals.tdee} kcal</strong> · Protein: <strong>{smartGoals.protein}g</strong> · Su: <strong>{smartGoals.water}L</strong></div>
+          </div>
+        )}
+        <Btn onClick={()=>{ if(smartGoals){ onGoalsChange({protein:smartGoals.protein,calories:smartGoals.calories,water:smartGoals.water,gymDuration:goals.gymDuration}); } }} color="#d97706" style={{marginBottom:14}}>
+          <Icon d={IC.zap} size={15} color="#fff"/>{t.settings.calcGoals}
+        </Btn>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {[
+            {f:"protein",  l:t.settings.protein},
+            {f:"calories", l:t.settings.calories},
+            {f:"water",    l:t.settings.water},
+            {f:"gymDuration",l:t.settings.duration},
+          ].map(({f,l})=>(
+            <div key={f}>
+              <div style={{fontSize:12,fontWeight:600,color:"#6b7280",marginBottom:5}}>{l}: <strong style={{color:"#111827"}}>{goals[f]}</strong></div>
+              <Input type="number" value={goals[f]} onChange={v=>onGoalsChange({...goals,[f]:Number(v)})}/>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Data */}
+      <Card>
+        <div style={{fontWeight:800,fontSize:15,marginBottom:14,color:"#111827"}}>💾 {t.settings.data}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <Btn onClick={onExport} color="#059669"><Icon d={IC.dl} size={15} color="#fff"/>{t.settings.export}</Btn>
+          <Btn onClick={()=>fileRef.current?.click()} outline color="#1d4ed8"><Icon d={IC.ul} size={15} color="#1d4ed8"/>{t.settings.import}</Btn>
+          <input ref={fileRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=ev=>onImport(ev.target.result);r.readAsText(f);}}}/>
+          <div style={{height:1,background:"#f1f5f9"}}/>
+          {!confirmReset?(
+            <Btn onClick={()=>setConfirmReset(true)} color="#dc2626" outline><Icon d={IC.refresh} size={15} color="#dc2626"/>{t.settings.reset}</Btn>
+          ):(
+            <div style={{background:"#fee2e2",borderRadius:12,padding:14}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#991b1b",marginBottom:10}}>⚠️ {t.settings.resetConfirm}</div>
+              <div style={{display:"flex",gap:10}}>
+                <Btn onClick={()=>{onReset();setConfirmReset(false);}} color="#dc2626">{t.settings.yes}</Btn>
+                <Btn onClick={()=>setConfirmReset(false)} outline color="#6b7280">{t.settings.cancel}</Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HEALTH DATA IMPORT SYSTEM
+// Supports: Apple Health (XML), Huawei Health (CSV/JSON),
+//           Samsung Health (CSV), Garmin (JSON/FIT-JSON), Generic CSV
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Universal Health Data Schema ──────────────────────────────────────────────
+// After parsing any format, everything is normalized to this shape:
+// {
+//   date: "2024-01-15",           // ISO date string
+//   weight: 75.2,                 // kg
+//   bmi: 24.3,
+//   bodyFat: 18.5,                // %
+//   muscleMass: 58.2,             // kg
+//   visceralFat: 8,               // level
+//   boneMass: 3.1,                // kg
+//   waterPercent: 62.1,           // %
+//   heartRate: { avg:72, min:52, max:145, resting:58 },
+//   hrv: 48,                      // ms
+//   bloodOxygen: 98,              // %
+//   bloodPressure: { systolic:118, diastolic:76 },
+//   bodyTemp: 36.6,               // °C
+//   respiratoryRate: 15,          // breaths/min
+//   steps: 8432,
+//   distance: 6.2,                // km
+//   activeCalories: 380,          // kcal
+//   totalCalories: 2100,          // kcal
+//   exerciseMinutes: 45,
+//   standHours: 10,
+//   flightsClimbed: 5,
+//   sleep: { total:7.5, deep:1.8, light:3.2, rem:2.1, awake:0.4, score:82 },
+//   stress: 32,                   // 0-100
+//   vo2max: 44.2,
+//   workouts: [{ type, duration, calories, distance, avgHR }],
+//   rawSource: "apple" | "huawei" | "samsung" | "garmin" | "generic"
+// }
+
+// ── Parsers ───────────────────────────────────────────────────────────────────
+
+const parseAppleHealth = (xmlText) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, "text/xml");
+  const records = doc.querySelectorAll("Record");
+  const workouts = doc.querySelectorAll("Workout");
+  const byDate = {};
+
+  const getDate = (str) => str?.split("T")[0] || str?.split(" ")[0];
+  const ensure = (d) => {
+    if (!byDate[d]) byDate[d] = { date: d, rawSource: "apple", workouts: [] };
+    return byDate[d];
+  };
+
+  const typeMap = {
+    "HKQuantityTypeIdentifierBodyMass":             (e, v) => { e.weight = v; },
+    "HKQuantityTypeIdentifierBodyMassIndex":        (e, v) => { e.bmi = v; },
+    "HKQuantityTypeIdentifierBodyFatPercentage":    (e, v) => { e.bodyFat = +(v * 100).toFixed(1); },
+    "HKQuantityTypeIdentifierLeanBodyMass":         (e, v) => { e.muscleMass = v; },
+    "HKQuantityTypeIdentifierHeartRate":            (e, v, rec) => {
+      if (!e.heartRate) e.heartRate = { values: [] };
+      e.heartRate.values.push(v);
+    },
+    "HKQuantityTypeIdentifierRestingHeartRate":     (e, v) => { if (!e.heartRate) e.heartRate = {}; e.heartRate.resting = v; },
+    "HKQuantityTypeIdentifierHeartRateVariabilitySDNN": (e, v) => { e.hrv = v; },
+    "HKQuantityTypeIdentifierOxygenSaturation":     (e, v) => { e.bloodOxygen = +(v * 100).toFixed(1); },
+    "HKQuantityTypeIdentifierBloodPressureSystolic":(e, v) => { if (!e.bloodPressure) e.bloodPressure = {}; e.bloodPressure.systolic = v; },
+    "HKQuantityTypeIdentifierBloodPressureDiastolic":(e,v) => { if (!e.bloodPressure) e.bloodPressure = {}; e.bloodPressure.diastolic = v; },
+    "HKQuantityTypeIdentifierBodyTemperature":      (e, v) => { e.bodyTemp = v; },
+    "HKQuantityTypeIdentifierRespiratoryRate":      (e, v) => { e.respiratoryRate = v; },
+    "HKQuantityTypeIdentifierStepCount":            (e, v) => { e.steps = (e.steps || 0) + Math.round(v); },
+    "HKQuantityTypeIdentifierDistanceWalkingRunning":(e,v) => { e.distance = +((e.distance||0) + v).toFixed(2); },
+    "HKQuantityTypeIdentifierActiveEnergyBurned":   (e, v) => { e.activeCalories = Math.round((e.activeCalories||0) + v); },
+    "HKQuantityTypeIdentifierBasalEnergyBurned":    (e, v) => { e._basalCal = Math.round((e._basalCal||0) + v); },
+    "HKQuantityTypeIdentifierFlightsClimbed":       (e, v) => { e.flightsClimbed = Math.round((e.flightsClimbed||0) + v); },
+    "HKQuantityTypeIdentifierAppleExerciseTime":    (e, v) => { e.exerciseMinutes = Math.round((e.exerciseMinutes||0) + v); },
+    "HKQuantityTypeIdentifierAppleStandTime":       (e, v) => { e.standHours = Math.round((e.standHours||0) + v / 60); },
+    "HKQuantityTypeIdentifierVO2Max":               (e, v) => { e.vo2max = v; },
+    "HKCategoryTypeIdentifierSleepAnalysis":        (e, v, rec) => {
+      if (!e.sleep) e.sleep = {};
+      const val = rec.getAttribute("value") || "";
+      const start = new Date(rec.getAttribute("startDate"));
+      const end   = new Date(rec.getAttribute("endDate"));
+      const hrs   = (end - start) / 3600000;
+      if (val.includes("Asleep") || val.includes("InBed")) e.sleep.total = +((e.sleep.total||0) + hrs).toFixed(2);
+      if (val.includes("Deep"))  e.sleep.deep  = +((e.sleep.deep||0) + hrs).toFixed(2);
+      if (val.includes("REM"))   e.sleep.rem   = +((e.sleep.rem||0)  + hrs).toFixed(2);
+      if (val.includes("Core") || val.includes("Light")) e.sleep.light = +((e.sleep.light||0) + hrs).toFixed(2);
+    },
+  };
+
+  records.forEach(rec => {
+    const type  = rec.getAttribute("type");
+    const dateStr = getDate(rec.getAttribute("startDate") || rec.getAttribute("creationDate"));
+    if (!dateStr || !type || !typeMap[type]) return;
+    const val = parseFloat(rec.getAttribute("value"));
+    if (isNaN(val) && !type.includes("Sleep")) return;
+    const entry = ensure(dateStr);
+    typeMap[type](entry, val, rec);
+  });
+
+  workouts.forEach(w => {
+    const dateStr = getDate(w.getAttribute("startDate"));
+    if (!dateStr) return;
+    const entry = ensure(dateStr);
+    entry.workouts.push({
+      type:     w.getAttribute("workoutActivityType")?.replace("HKWorkoutActivityType",""),
+      duration: Math.round(parseFloat(w.getAttribute("duration") || 0)),
+      calories: Math.round(parseFloat(w.getAttribute("totalEnergyBurned") || 0)),
+      distance: +(parseFloat(w.getAttribute("totalDistance") || 0)).toFixed(2),
+    });
+    entry.gym = true;
+  });
+
+  // Post-process heart rate arrays → avg/min/max
+  Object.values(byDate).forEach(e => {
+    if (e.heartRate?.values?.length > 0) {
+      const v = e.heartRate.values;
+      e.heartRate.avg = Math.round(v.reduce((a,b)=>a+b,0)/v.length);
+      e.heartRate.min = Math.round(Math.min(...v));
+      e.heartRate.max = Math.round(Math.max(...v));
+      delete e.heartRate.values;
+    }
+    if (e._basalCal) {
+      e.totalCalories = (e.activeCalories||0) + e._basalCal;
+      delete e._basalCal;
+    }
+  });
+
+  return Object.values(byDate).sort((a,b) => a.date.localeCompare(b.date));
+};
+
+const parseHuaweiHealth = (text, fileName) => {
+  // Huawei exports multiple CSV files in a ZIP, or one JSON
+  // We handle the most common: motion path, sleep, health data CSVs
+  const byDate = {};
+  const ensure = (d) => {
+    if (!byDate[d]) byDate[d] = { date: d, rawSource: "huawei", workouts: [] };
+    return byDate[d];
+  };
+
+  const lines = text.trim().split("\n").filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, "").toLowerCase());
+  const getIdx = (...names) => names.map(n => headers.findIndex(h => h.includes(n))).find(i => i >= 0) ?? -1;
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",").map(c => c.trim().replace(/"/g, ""));
+    const dateIdx = getIdx("date","time","starttime","start_time");
+    if (dateIdx < 0) continue;
+    const dateStr = (cols[dateIdx] || "").split(" ")[0].split("T")[0];
+    if (!dateStr || dateStr.length < 8) continue;
+    const e = ensure(dateStr);
+
+    // Map common Huawei CSV column patterns
+    const set = (key, ...colNames) => {
+      const idx = getIdx(...colNames);
+      if (idx >= 0 && cols[idx] && cols[idx] !== "") {
+        const v = parseFloat(cols[idx]);
+        if (!isNaN(v)) e[key] = v;
+      }
+    };
+
+    set("steps",         "step","steps");
+    set("distance",      "distance");
+    set("activeCalories","calories","active_calories","calorie");
+    set("weight",        "weight","体重");
+    set("bodyFat",       "body_fat","fat_rate","fatrate");
+    set("muscleMass",    "muscle","muscle_mass");
+    set("waterPercent",  "water_rate","waterrate","water");
+    set("visceralFat",   "visceral","visceral_fat");
+    set("boneMass",      "bone","bone_mass");
+    set("bmi",           "bmi");
+    set("vo2max",        "vo2max","maxoxygen");
+    set("stress",        "stress");
+    set("bloodOxygen",   "spo2","blood_oxygen","oxygen");
+
+    // Heart rate
+    const hrAvgIdx = getIdx("avg_heart","average_heart","avg_hr","heart_rate_avg");
+    const hrMinIdx = getIdx("min_heart","min_hr");
+    const hrMaxIdx = getIdx("max_heart","max_hr");
+    const hrIdx    = getIdx("heart_rate","heartrate");
+    if (hrAvgIdx >= 0 || hrIdx >= 0) {
+      if (!e.heartRate) e.heartRate = {};
+      const avg = parseFloat(cols[hrAvgIdx >= 0 ? hrAvgIdx : hrIdx]);
+      if (!isNaN(avg)) e.heartRate.avg = Math.round(avg);
+      if (hrMinIdx >= 0) { const v = parseFloat(cols[hrMinIdx]); if(!isNaN(v)) e.heartRate.min = Math.round(v); }
+      if (hrMaxIdx >= 0) { const v = parseFloat(cols[hrMaxIdx]); if(!isNaN(v)) e.heartRate.max = Math.round(v); }
+    }
+
+    // Sleep
+    const sleepIdx = getIdx("sleep_score","sleep_duration","sleep_time","totalsleep");
+    if (sleepIdx >= 0) {
+      if (!e.sleep) e.sleep = {};
+      const v = parseFloat(cols[sleepIdx]);
+      if (!isNaN(v)) {
+        // Huawei sometimes stores in minutes
+        e.sleep.total = v > 24 ? +(v / 60).toFixed(2) : v;
+      }
+      const deepIdx  = getIdx("deep_sleep","deepsleep");
+      const remIdx   = getIdx("rem_sleep","remsleep");
+      const lightIdx = getIdx("light_sleep","lightsleep");
+      if (deepIdx  >= 0) { const vv=parseFloat(cols[deepIdx]);  if(!isNaN(vv)) e.sleep.deep  = vv > 24 ? +(vv/60).toFixed(2) : vv; }
+      if (remIdx   >= 0) { const vv=parseFloat(cols[remIdx]);   if(!isNaN(vv)) e.sleep.rem   = vv > 24 ? +(vv/60).toFixed(2) : vv; }
+      if (lightIdx >= 0) { const vv=parseFloat(cols[lightIdx]); if(!isNaN(vv)) e.sleep.light = vv > 24 ? +(vv/60).toFixed(2) : vv; }
+      const scoreIdx = getIdx("sleep_score","sleepscore");
+      if (scoreIdx >= 0) { const vv=parseFloat(cols[scoreIdx]); if(!isNaN(vv)) e.sleep.score = Math.round(vv); }
+    }
+  }
+  return Object.values(byDate).sort((a,b) => a.date.localeCompare(b.date));
+};
+
+const parseSamsungHealth = (text) => {
+  // Samsung Health exports multiple CSVs with metadata header rows
+  // First few lines are metadata (com.samsung.health...)
+  const lines = text.split("\n").filter(l => l.trim() && !l.startsWith("Package") && !l.startsWith("com.samsung"));
+  if (lines.length < 2) return [];
+  return parseHuaweiHealth(lines.join("\n"), "samsung"); // Structure is similar
+};
+
+const parseGarminJSON = (jsonText) => {
+  let data;
+  try { data = JSON.parse(jsonText); } catch { return []; }
+  const byDate = {};
+  const ensure = (d) => { if (!byDate[d]) byDate[d] = { date: d, rawSource: "garmin", workouts: [] }; return byDate[d]; };
+
+  // Garmin Connect JSON export structure
+  const entries = Array.isArray(data) ? data : (data.dailyHeartRate || data.dailySummary || data.userDailySummaries || [data]);
+  entries.forEach(item => {
+    const dateStr = (item.calendarDate || item.startTimeLocal || item.summaryDate || "")?.split("T")[0];
+    if (!dateStr) return;
+    const e = ensure(dateStr);
+    if (item.totalSteps !== undefined)      e.steps          = item.totalSteps;
+    if (item.totalDistanceMeters !== undefined) e.distance   = +(item.totalDistanceMeters / 1000).toFixed(2);
+    if (item.activeKilocalories !== undefined) e.activeCalories = Math.round(item.activeKilocalories);
+    if (item.bmrKilocalories !== undefined) e.totalCalories  = Math.round((item.activeKilocalories||0) + item.bmrKilocalories);
+    if (item.restingHeartRate !== undefined) { if(!e.heartRate) e.heartRate={}; e.heartRate.resting = item.restingHeartRate; }
+    if (item.maxHeartRate !== undefined)    { if(!e.heartRate) e.heartRate={}; e.heartRate.max = item.maxHeartRate; }
+    if (item.minHeartRate !== undefined)    { if(!e.heartRate) e.heartRate={}; e.heartRate.min = item.minHeartRate; }
+    if (item.averageHeartRate !== undefined){ if(!e.heartRate) e.heartRate={}; e.heartRate.avg = item.averageHeartRate; }
+    if (item.vo2Max !== undefined)          e.vo2max         = item.vo2Max;
+    if (item.averageStressLevel !== undefined) e.stress      = item.averageStressLevel;
+    if (item.bodyWeight !== undefined)      e.weight         = +(item.bodyWeight / 1000).toFixed(1); // grams → kg
+    if (item.bmi !== undefined)             e.bmi            = item.bmi;
+    if (item.bodyFat !== undefined)         e.bodyFat        = item.bodyFat;
+
+    // Sleep
+    if (item.sleepTimeSeconds !== undefined || item.deepSleepSeconds !== undefined) {
+      if (!e.sleep) e.sleep = {};
+      if (item.sleepTimeSeconds)  e.sleep.total = +(item.sleepTimeSeconds  / 3600).toFixed(2);
+      if (item.deepSleepSeconds)  e.sleep.deep  = +(item.deepSleepSeconds  / 3600).toFixed(2);
+      if (item.lightSleepSeconds) e.sleep.light = +(item.lightSleepSeconds / 3600).toFixed(2);
+      if (item.remSleepSeconds)   e.sleep.rem   = +(item.remSleepSeconds   / 3600).toFixed(2);
+      if (item.awakeSleepSeconds) e.sleep.awake = +(item.awakeSleepSeconds / 3600).toFixed(2);
+      if (item.sleepScore)        e.sleep.score = item.sleepScore;
+    }
+
+    // Workouts (activities)
+    if (item.activityType) {
+      e.workouts.push({
+        type:     item.activityType?.typeKey || item.activityType,
+        duration: Math.round((item.duration || 0) / 60),
+        calories: Math.round(item.calories || 0),
+        distance: +((item.distance || 0) / 1000).toFixed(2),
+        avgHR:    item.averageHR || null,
+      });
+      e.gym = true;
+    }
+  });
+  return Object.values(byDate).sort((a,b) => a.date.localeCompare(b.date));
+};
+
+// Generic CSV fallback — tries to intelligently map any CSV
+const parseGenericCSV = (text) => {
+  const lines = text.trim().split("\n").filter(l => l.trim());
+  if (lines.length < 2) return [];
+  return parseHuaweiHealth(text, "generic");
+};
+
+// ── Auto-detect format and parse ──────────────────────────────────────────────
+const detectAndParse = async (file) => {
+  const name = file.name.toLowerCase();
+  const text = await file.text();
+
+  if (name.endsWith(".xml") || text.trimStart().startsWith("<?xml") || text.includes("<HealthData")) {
+    return { data: parseAppleHealth(text), source: "Apple Health" };
+  }
+  if (name.endsWith(".json") || (text.trimStart().startsWith("{") || text.trimStart().startsWith("["))) {
+    return { data: parseGarminJSON(text), source: "Garmin / JSON" };
+  }
+  if (text.includes("com.samsung.health") || name.includes("samsung")) {
+    return { data: parseSamsungHealth(text), source: "Samsung Health" };
+  }
+  // Default: CSV (Huawei / Generic)
+  return { data: parseHuaweiHealth(text, name), source: name.includes("huawei") ? "Huawei Health" : "Generic CSV" };
+};
+
+// ── Merge parsed health data into app's week structure ────────────────────────
+const mergeHealthDataIntoWeek = (healthEntries, currentWeek, DAYS) => {
+  const weekStart = new Date(currentWeek.startDate);
+  const updatedDays = { ...currentWeek.days };
+  let mergedCount = 0;
+
+  healthEntries.forEach(entry => {
+    const entryDate = new Date(entry.date);
+    const diffDays  = Math.round((entryDate - weekStart) / 86400000);
+    if (diffDays < 0 || diffDays > 6) return; // outside this week
+
+    const dayName = DAYS[diffDays];
+    if (!dayName) return;
+
+    const existing = updatedDays[dayName] || {};
+    const merged = { ...existing };
+
+    // Weight & body composition
+    if (entry.weight)       merged.weight      = entry.weight;
+    if (entry.bmi)          merged.bmi         = entry.bmi;
+    if (entry.bodyFat)      merged.bodyFat     = entry.bodyFat;
+    if (entry.muscleMass)   merged.muscleMass  = entry.muscleMass;
+    if (entry.waterPercent) merged.waterPercent= entry.waterPercent;
+    if (entry.visceralFat)  merged.visceralFat = entry.visceralFat;
+    if (entry.boneMass)     merged.boneMass    = entry.boneMass;
+    if (entry.vo2max)       merged.vo2max      = entry.vo2max;
+
+    // Vitals
+    if (entry.heartRate)        merged.heartRateData    = entry.heartRate;
+    if (entry.hrv)              merged.hrv              = entry.hrv;
+    if (entry.bloodOxygen)      merged.bloodOxygen      = entry.bloodOxygen;
+    if (entry.bloodPressure)    merged.bloodPressureData= entry.bloodPressure;
+    if (entry.bodyTemp)         merged.bodyTemp         = entry.bodyTemp;
+    if (entry.respiratoryRate)  merged.respiratoryRate  = entry.respiratoryRate;
+
+    // Activity
+    if (entry.steps)            merged.steps           = entry.steps;
+    if (entry.distance)         merged.distance        = entry.distance;
+    if (entry.activeCalories)   merged.caloriesBurned  = entry.activeCalories;
+    if (entry.exerciseMinutes)  merged.duration        = entry.exerciseMinutes;
+    if (entry.flightsClimbed)   merged.flightsClimbed  = entry.flightsClimbed;
+
+    // Sleep
+    if (entry.sleep) {
+      if (!merged.health) merged.health = {};
+      merged.health = { ...merged.health };
+      if (entry.sleep.total) merged.sleep = entry.sleep.total;
+      merged.sleepData = entry.sleep;
+    }
+
+    // Stress
+    if (entry.stress !== undefined) {
+      if (!merged.health) merged.health = {};
+      merged.health = { ...merged.health, stress: Math.round(entry.stress / 10) };
+    }
+
+    // Workouts
+    if (entry.workouts?.length > 0) {
+      merged.gym = true;
+      const firstWorkout = entry.workouts[0];
+      if (!merged.workoutType && firstWorkout.type) merged.workoutType = firstWorkout.type;
+      merged.importedWorkouts = entry.workouts;
+    }
+
+    merged.healthImportSource = entry.rawSource;
+    merged.healthImportDate   = new Date().toISOString();
+    updatedDays[dayName] = merged;
+    mergedCount++;
+  });
+
+  return { updatedDays, mergedCount };
+};
+
+// ── Health Import UI Component ─────────────────────────────────────────────────
+const HealthImportTab = ({ week, onWeekUpdate, DAYS, COLORS }) => {
+  const [status, setStatus]     = useState("idle"); // idle | parsing | done | error
+  const [result, setResult]     = useState(null);
+  const [preview, setPreview]   = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const [activeMetric, setActiveMetric] = useState("weight");
+  const fileRef = useRef(null);
+
+  const SOURCE_ICONS = {
+    "Apple Health": "🍎", "Huawei Health": "📱",
+    "Samsung Health": "🌀", "Garmin / JSON": "⌚", "Generic CSV": "📄"
+  };
+
+  const METRIC_GROUPS = [
+    {
+      group: "🏋️ Vücut Kompozisyonu",
+      metrics: [
+        { key: "weight",       label: "Kilo",          unit: "kg",  color: "#7c3aed" },
+        { key: "bmi",          label: "BMI",           unit: "",    color: "#1d4ed8" },
+        { key: "bodyFat",      label: "Yağ Oranı",     unit: "%",   color: "#f97316" },
+        { key: "muscleMass",   label: "Kas Kütlesi",   unit: "kg",  color: "#059669" },
+        { key: "waterPercent", label: "Su Oranı",      unit: "%",   color: "#06b6d4" },
+        { key: "visceralFat",  label: "Viseral Yağ",   unit: "",    color: "#dc2626" },
+        { key: "boneMass",     label: "Kemik Kütlesi", unit: "kg",  color: "#6b7280" },
+      ]
+    },
+    {
+      group: "❤️ Kalp & Dolaşım",
+      metrics: [
+        { key: "heartRate.avg",  label: "Ort. Nabız",    unit: "bpm", color: "#ef4444" },
+        { key: "heartRate.min",  label: "Min Nabız",     unit: "bpm", color: "#f87171" },
+        { key: "heartRate.max",  label: "Maks Nabız",    unit: "bpm", color: "#dc2626" },
+        { key: "heartRate.resting", label: "İst. Nabız", unit: "bpm", color: "#b91c1c" },
+        { key: "hrv",            label: "HRV",           unit: "ms",  color: "#ec4899" },
+        { key: "bloodOxygen",    label: "SpO2",          unit: "%",   color: "#3b82f6" },
+        { key: "bloodPressure",  label: "Kan Basıncı",   unit: "mmHg",color: "#7c3aed" },
+        { key: "bodyTemp",       label: "Vücut Sıcaklığı",unit:"°C",  color: "#f59e0b" },
+        { key: "respiratoryRate",label: "Solunum Hızı",  unit: "/dk", color: "#10b981" },
+      ]
+    },
+    {
+      group: "🏃 Aktivite",
+      metrics: [
+        { key: "steps",          label: "Adım",          unit: "",    color: "#3b82f6" },
+        { key: "distance",       label: "Mesafe",        unit: "km",  color: "#059669" },
+        { key: "activeCalories", label: "Aktif Kalori",  unit: "kcal",color: "#f97316" },
+        { key: "exerciseMinutes",label: "Egzersiz",      unit: "dk",  color: "#1d4ed8" },
+        { key: "flightsClimbed", label: "Merdiven",      unit: "kat", color: "#6b7280" },
+        { key: "vo2max",         label: "VO2 Maks",      unit: "",    color: "#7c3aed" },
+      ]
+    },
+    {
+      group: "😴 Uyku",
+      metrics: [
+        { key: "sleep.total", label: "Toplam Uyku", unit: "sa",  color: "#7c3aed" },
+        { key: "sleep.deep",  label: "Derin Uyku",  unit: "sa",  color: "#1d4ed8" },
+        { key: "sleep.rem",   label: "REM",          unit: "sa",  color: "#059669" },
+        { key: "sleep.light", label: "Hafif Uyku",  unit: "sa",  color: "#06b6d4" },
+        { key: "sleep.score", label: "Uyku Skoru",  unit: "",    color: "#f59e0b" },
+      ]
+    },
+    {
+      group: "🧘 Genel Sağlık",
+      metrics: [
+        { key: "stress", label: "Stres", unit: "", color: "#f59e0b" },
+      ]
+    },
+  ];
+
+  const getVal = (entry, key) => {
+    if (key.includes(".")) {
+      const [obj, prop] = key.split(".");
+      return entry[obj]?.[prop];
+    }
+    return entry[key];
+  };
+
+  const processFile = async (file) => {
+    setStatus("parsing");
+    setResult(null);
+    setPreview(null);
+    try {
+      const { data, source } = await detectAndParse(file);
+      if (!data || data.length === 0) {
+        setStatus("error");
+        setResult({ error: "Dosyada veri bulunamadı. Format destekleniyor mu?" });
+        return;
+      }
+      setPreview({ data, source, fileName: file.name });
+      setStatus("preview");
+    } catch (err) {
+      setStatus("error");
+      setResult({ error: "Parse hatası: " + err.message });
+    }
+  };
+
+  const applyImport = () => {
+    if (!preview?.data) return;
+    const { updatedDays, mergedCount } = mergeHealthDataIntoWeek(preview.data, week, DAYS);
+    onWeekUpdate({ ...week, days: updatedDays });
+    setResult({ success: true, source: preview.source, total: preview.data.length, merged: mergedCount });
+    setPreview(null);
+    setStatus("done");
+  };
+
+  // Build chart data for preview
+  const chartData = preview?.data || [];
+  const allMetrics = METRIC_GROUPS.flatMap(g => g.metrics);
+  const activeMeta = allMetrics.find(m => m.key === activeMetric);
+
+  const miniChart = (data, key, color, h = 60) => {
+    const vals = data.map(d => getVal(d, key)).filter(v => v != null && !isNaN(v));
+    if (vals.length < 2) return null;
+    const min = Math.min(...vals); const max = Math.max(...vals); const range = max - min || 1;
+    const W = 400; const H = h; const pad = { t: 6, b: 6, l: 4, r: 4 };
+    const toX = i => pad.l + (i / (vals.length - 1)) * (W - pad.l - pad.r);
+    const toY = v => pad.t + ((max - v) / range) * (H - pad.t - pad.b);
+    const pts = vals.map((v, i) => `${toX(i)},${toY(v)}`).join(" ");
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: h }}>
+        <defs>
+          <linearGradient id={`mg_${key}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <polygon points={`${pts} ${toX(vals.length-1)},${H-pad.b} ${toX(0)},${H-pad.b}`} fill={`url(#mg_${key})`} />
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      </svg>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* Header */}
+      <div style={{ background: "linear-gradient(135deg,#0f172a,#1e1b4b)", borderRadius: 20, padding: "22px 20px", color: "#fff" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, opacity: .6, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Sağlık Verisi İthalat</div>
+        <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}>📲 Cihaz Verilerini Yükle</div>
+        <div style={{ fontSize: 12, opacity: .65, lineHeight: 1.6 }}>
+          Apple Health, Huawei Health, Samsung Health, Garmin<br/>
+          XML · CSV · JSON formatları otomatik tanınır
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+          {["🍎 Apple", "📱 Huawei", "🌀 Samsung", "⌚ Garmin", "📄 CSV/JSON"].map(l => (
+            <div key={l} style={{ background: "rgba(255,255,255,0.12)", borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{l}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* How to export guide */}
+      <div style={{ background: "#fff", borderRadius: 16, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
+        <div style={{ fontWeight: 800, fontSize: 13, color: "#111827", marginBottom: 12 }}>📖 Nasıl Export Edilir?</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { icon: "🍎", name: "Apple Health", steps: "Health app → Profil ikonu (sağ üst) → Export All Health Data → ZIP dosyasını kaydet → export.xml'i buraya yükle" },
+            { icon: "📱", name: "Huawei Health", steps: "Uygulama → Ben → Ayarlar → Sağlık Verilerini Yönet → Dışa Aktar → CSV dosyasını buraya yükle" },
+            { icon: "🌀", name: "Samsung Health", steps: "Uygulama → Profil → Ayarlar → Verileri İndir → İndirilen CSV dosyasını buraya yükle" },
+            { icon: "⌚", name: "Garmin Connect", steps: "connect.garmin.com → Profil → Hesabım → Veri Dışa Aktar → JSON dosyasını buraya yükle" },
+          ].map(({ icon, name, steps }) => (
+            <div key={name} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
+              <div style={{ fontSize: 22, flexShrink: 0 }}>{icon}</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 3 }}>{name}</div>
+                <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.5 }}>{steps}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) processFile(f); }}
+        onClick={() => fileRef.current?.click()}
+        style={{
+          border: `2px dashed ${dragging ? "#1d4ed8" : "#cbd5e1"}`,
+          borderRadius: 16, padding: "32px 20px", textAlign: "center", cursor: "pointer",
+          background: dragging ? "#eff6ff" : "#f8fafc",
+          transition: "all .2s",
+        }}>
+        <div style={{ fontSize: 40, marginBottom: 10 }}>
+          {status === "parsing" ? "⏳" : "📁"}
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "#1e293b", marginBottom: 6 }}>
+          {status === "parsing" ? "Dosya analiz ediliyor..." : "Dosyayı buraya sürükle veya tıkla"}
+        </div>
+        <div style={{ fontSize: 12, color: "#94a3b8" }}>
+          XML, CSV, JSON — Tüm formatlar desteklenir
+        </div>
+        <input ref={fileRef} type="file" accept=".xml,.csv,.json,.txt" style={{ display: "none" }}
+          onChange={e => { const f = e.target.files[0]; if (f) processFile(f); }} />
+      </div>
+
+      {/* Error */}
+      {status === "error" && result?.error && (
+        <div style={{ background: "#fee2e2", borderRadius: 12, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <span style={{ fontSize: 18 }}>❌</span>
+          <div>
+            <div style={{ fontWeight: 700, color: "#991b1b", fontSize: 13 }}>Parse Hatası</div>
+            <div style={{ fontSize: 12, color: "#7f1d1d", marginTop: 4 }}>{result.error}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Success */}
+      {status === "done" && result?.success && (
+        <div style={{ background: "#d1fae5", borderRadius: 12, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <span style={{ fontSize: 22 }}>✅</span>
+          <div>
+            <div style={{ fontWeight: 800, color: "#065f46", fontSize: 14 }}>Başarıyla İçe Aktarıldı!</div>
+            <div style={{ fontSize: 12, color: "#047857", marginTop: 4 }}>
+              {result.source} · {result.total} gün verisi · {result.merged} günle eşleşti
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview */}
+      {status === "preview" && preview && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Summary */}
+          <div style={{ background: "#fff", borderRadius: 16, padding: "16px 18px", border: "1.5px solid #e0f2fe" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>
+                  {SOURCE_ICONS[preview.source] || "📄"} {preview.source}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>{preview.fileName} · {preview.data.length} gün</div>
+              </div>
+              <div style={{ background: "#dbeafe", borderRadius: 10, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "#1e40af" }}>
+                Önizleme
+              </div>
+            </div>
+
+            {/* Date range */}
+            <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#6b7280", marginBottom: 12 }}>
+              <span>📅 {preview.data[0]?.date}</span>
+              <span>→</span>
+              <span>{preview.data[preview.data.length - 1]?.date}</span>
+            </div>
+
+            {/* Available metrics summary */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {allMetrics.filter(m => {
+                const hasData = preview.data.some(d => getVal(d, m.key) != null);
+                return hasData;
+              }).map(m => (
+                <div key={m.key} style={{ background: m.color + "18", border: `1px solid ${m.color}44`, borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 600, color: m.color }}>
+                  {m.label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Metric explorer */}
+          <div style={{ background: "#fff", borderRadius: 16, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: "#111827", marginBottom: 12 }}>🔍 Veri Önizleme</div>
+
+            {/* Metric group tabs */}
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 4 }}>
+              {METRIC_GROUPS.map(g => (
+                <button key={g.group} onClick={() => setActiveMetric(g.metrics[0].key)}
+                  style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 10, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer",
+                    background: g.metrics.some(m => m.key === activeMetric) ? "#1d4ed8" : "#f3f4f6",
+                    color: g.metrics.some(m => m.key === activeMetric) ? "#fff" : "#6b7280" }}>
+                  {g.group.split(" ")[0]} {g.group.split(" ").slice(1).join(" ")}
+                </button>
+              ))}
+            </div>
+
+            {/* Metric pills */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+              {METRIC_GROUPS.flatMap(g => g.metrics)
+                .filter(m => preview.data.some(d => getVal(d, m.key) != null))
+                .map(m => (
+                  <button key={m.key} onClick={() => setActiveMetric(m.key)}
+                    style={{ padding: "4px 12px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer",
+                      background: activeMetric === m.key ? m.color : "#f3f4f6",
+                      color: activeMetric === m.key ? "#fff" : "#6b7280" }}>
+                    {m.label}
+                  </button>
+                ))}
+            </div>
+
+            {/* Chart */}
+            {activeMeta && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#111827" }}>{activeMeta.label}</div>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                    {(() => {
+                      const vals = chartData.map(d => getVal(d, activeMeta.key)).filter(v => v != null && !isNaN(Number(v)));
+                      if (vals.length === 0) return "Veri yok";
+                      const avg = (vals.reduce((a,b) => a + Number(b), 0) / vals.length);
+                      return `Ort: ${avg.toFixed(1)} ${activeMeta.unit} · ${vals.length} kayıt`;
+                    })()}
+                  </div>
+                </div>
+                {miniChart(chartData, activeMeta.key, activeMeta.color, 80)}
+              </div>
+            )}
+
+            {/* Last 7 rows table */}
+            <div style={{ marginTop: 12, overflowX: "auto" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6 }}>Son 7 Kayıt</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    <th style={{ padding: "6px 10px", textAlign: "left", color: "#6b7280", fontWeight: 700 }}>Tarih</th>
+                    <th style={{ padding: "6px 10px", textAlign: "right", color: activeMeta?.color || "#111827", fontWeight: 700 }}>{activeMeta?.label}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.data.slice(-7).reverse().map((d, i) => {
+                    const val = activeMeta ? getVal(d, activeMeta.key) : null;
+                    return (
+                      <tr key={i} style={{ borderTop: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "6px 10px", color: "#374151" }}>{d.date}</td>
+                        <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, color: val != null ? (activeMeta?.color || "#111827") : "#d1d5db" }}>
+                          {val != null ? `${Number(val).toFixed(1)} ${activeMeta?.unit || ""}` : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={applyImport}
+              style={{ flex: 1, padding: "12px 20px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#1d4ed8,#7c3aed)", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+              ✅ Bu Haftaya Uygula
+            </button>
+            <button onClick={() => { setStatus("idle"); setPreview(null); }}
+              style={{ padding: "12px 16px", borderRadius: 14, border: "1.5px solid #e5e7eb", background: "#fff", color: "#6b7280", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ─── Bottom Nav ───────────────────────────────────────────────────────────────
+const TABS_DEF=[
+  {id:"dashboard",emoji:"🏠"},
+  {id:"weekly",   emoji:"📅"},
+  {id:"workout",  emoji:"🏋️"},
+  {id:"supps",    emoji:"💊"},
+  {id:"nutrition",emoji:"🍽️"},
+  {id:"health",   emoji:"❤️"},
+  {id:"reports",  emoji:"📊"},
+  {id:"import",   emoji:"📲"},
+  {id:"settings", emoji:"⚙️"},
+];
+
+const BottomNav=({activeTab,setActiveTab})=>{
+  const {t}=useLang();
+  const scrollRef=useRef(null);
+  const activeIdx=TABS_DEF.findIndex(t2=>t2.id===activeTab);
+  useEffect(()=>{
+    const el=scrollRef.current; if(!el) return;
+    const btn=el.children[activeIdx];
+    if(btn) btn.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"});
+  },[activeIdx]);
+  return (
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:"rgba(255,255,255,0.97)",backdropFilter:"blur(16px)",borderTop:"1.5px solid #e5e7eb",paddingBottom:"env(safe-area-inset-bottom)"}}>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:3}}>
+        <div style={{height:"100%",width:`${100/TABS_DEF.length}%`,background:"linear-gradient(90deg,#1d4ed8,#7c3aed)",borderRadius:"0 0 3px 3px",transform:`translateX(${activeIdx*100}%)`,transition:"transform 0.3s cubic-bezier(0.34,1.56,0.64,1)"}}/>
+      </div>
+      <div ref={scrollRef} style={{display:"flex",overflowX:"auto",scrollbarWidth:"none",padding:"5px 2px 7px"}}>
+        {TABS_DEF.map((tab,i)=>{
+          const active=tab.id===activeTab;
+          return (
+            <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
+              style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:2,border:"none",background:"transparent",padding:"3px 10px",cursor:"pointer",minWidth:60}}>
+              <div style={{fontSize:active?22:18,transform:active?"translateY(-3px) scale(1.15)":"translateY(0) scale(1)",transition:"all 0.3s cubic-bezier(0.34,1.56,0.64,1)",filter:active?"drop-shadow(0 2px 8px #1d4ed866)":"none"}}>
+                {tab.emoji}
+              </div>
+              <span style={{fontSize:8,fontWeight:active?800:500,color:active?"#1d4ed8":"#9ca3af",transition:"color .2s",letterSpacing:active?".3px":0}}>
+                {t.tabs[tab.id]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+export default function App(){
+  const todayIdx=new Date().getDay();
+  const todayName=DAYS[todayIdx===0?6:todayIdx-1];
+  const [week,setWeek]=useState(()=>load("fitness_week",defaultWeek()));
+  const [profile,setProfile]=useState(()=>load("fitness_profile",defaultProfile()));
+  const [lang,setLangState]=useState(()=>load("fitness_lang","tr"));
+  const [activeDay,setActiveDay]=useState(todayName);
+  const [activeTab,setActiveTab]=useState("dashboard");
+  const [saved,setSaved]=useState(false);
+  const prevTabIdx=useRef(TABS_DEF.findIndex(t=>t.id===activeTab));
+  const curTabIdx=TABS_DEF.findIndex(t=>t.id===activeTab);
+  const slideDir=curTabIdx>=prevTabIdx.current?1:-1;
+  useEffect(()=>{prevTabIdx.current=curTabIdx;},[curTabIdx]);
+  useEffect(()=>{save("fitness_week",week);},[week]);
+  useEffect(()=>{save("fitness_profile",profile);},[profile]);
+  useEffect(()=>{save("fitness_lang",lang);},[lang]);
+
+  const setLang=(l)=>setLangState(l);
+  const t=lang==="tr"?TR:EN;
+
+  const onUpdateDay=useCallback((day,data)=>setWeek(w=>({...w,days:{...w.days,[day]:data}})),[]);
+  const onGoalsChange=goals=>setWeek(w=>({...w,goals}));
+  const onReset=()=>setWeek({...defaultWeek(),startDate:new Date().toISOString().slice(0,10)});
+  const onExport=()=>{const blob=new Blob([JSON.stringify({week,profile,lang},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`gymlog_${week.startDate}.json`;a.click();};
+  const onImport=text=>{try{const d=JSON.parse(text);if(d.week)setWeek(d.week);if(d.profile)setProfile(d.profile);if(d.lang)setLangState(d.lang);}catch(e){alert("Invalid JSON");}};
+  const onProfileChange=(field,val)=>setProfile(p=>({...p,[field]:val}));
+  const manualSave=()=>{save("fitness_week",week);save("fitness_profile",profile);setSaved(true);setTimeout(()=>setSaved(false),2000);};
+
+  const dayData=week.days[activeDay]||defaultDay();
+  const goals=week.goals||defaultWeek().goals;
+  const tabProps={week,activeDay,setActiveDay,onUpdateDay,goals,profile};
+
+  return (
+    <LangCtx.Provider value={{t,lang,setLang}}>
+      <div style={{minHeight:"100vh",background:"#f1f5f9",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap');
+          *{box-sizing:border-box;} input,select,textarea{font-family:inherit;}
+          ::-webkit-scrollbar{width:4px;height:4px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px;}
+          @keyframes slideIn{from{opacity:0;transform:translateX(var(--slide-from))}to{opacity:1;transform:translateX(0)}}
+          .tab-content{animation:slideIn 0.26s cubic-bezier(.25,.46,.45,.94) both;}
+          input[type=range]{-webkit-appearance:none;height:6px;border-radius:3px;background:#e5e7eb;}
+          input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--thumb-color,#3b82f6);box-shadow:0 1px 4px #0003;cursor:pointer;}
+        `}</style>
+        {/* Top bar */}
+        <div style={{background:"#fff",borderBottom:"1.5px solid #e5e7eb",padding:"0 16px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,height:54}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:34,height:34,background:"linear-gradient(135deg,#1d4ed8,#7c3aed)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Icon d={IC.dumbbell} size={17} color="#fff"/>
+            </div>
+            <div>
+              <div style={{fontWeight:900,fontSize:14,color:"#111827",lineHeight:1.1}}>{t.appName}</div>
+              <div style={{fontSize:9,color:"#9ca3af",fontWeight:600}}>{t.by} {profile.name}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:10,color:"#9ca3af",fontWeight:600}}>{lang==="tr"?DAY_TR[DAYS.indexOf(activeDay)].slice(0,3).toUpperCase():activeDay.slice(0,3).toUpperCase()}</span>
+            <button onClick={()=>setActiveTab("settings")} style={{background:"#f3f4f6",border:"none",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:10,fontWeight:700,color:"#6b7280"}}>
+              {lang==="tr"?"TR":"EN"}
+            </button>
+            <Btn onClick={manualSave} color={saved?"#059669":"#1d4ed8"} small>
+              <Icon d={saved?IC.check:IC.save} size={13} color="#fff"/>{saved?t.saved:t.save}
+            </Btn>
+          </div>
+        </div>
+        {/* Content */}
+        <div key={activeTab} className="tab-content"
+          style={{"--slide-from":slideDir>0?"22px":"-22px",maxWidth:640,margin:"0 auto",padding:"14px 12px 96px"}}>
+          {activeTab==="dashboard"  &&<Dashboard   {...tabProps} dayData={dayData} day={activeDay}/>}
+          {activeTab==="weekly"     &&<WeeklyTracker {...tabProps}/>}
+          {activeTab==="workout"    &&<WorkoutTab  {...tabProps}/>}
+          {activeTab==="supps"      &&<SupplementsTab {...tabProps}/>}
+          {activeTab==="nutrition"  &&<NutritionTab {...tabProps}/>}
+          {activeTab==="health"     &&<HealthTab   {...tabProps}/>}
+          {activeTab==="reports"    &&<ReportsTab  week={week} profile={profile}/>}
+          {activeTab==="import"     &&<HealthImportTab week={week} onWeekUpdate={setWeek} DAYS={DAYS} COLORS={COLORS}/>}
+        {activeTab==="settings"   &&<SettingsTab week={week} goals={goals} onGoalsChange={onGoalsChange} onReset={onReset} onExport={onExport} onImport={onImport} profile={profile} onProfileChange={onProfileChange} lang={lang} setLang={setLang}/>}
+        </div>
+        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}/>
+      </div>
+    </LangCtx.Provider>
+  );
+}
+
+    // Mount app
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(App));
