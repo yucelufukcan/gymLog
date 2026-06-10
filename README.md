@@ -16,7 +16,7 @@ Haftalık antrenman, supplement, beslenme ve sağlık takip uygulaması.
 ## Kurulum
 1. Bu repo'yu fork et
 2. Settings → Pages → Branch: main → / (root) → Save
-3. `https://KULLANICI_ADI.github.io/gymlog` adresine git
+3. `https://yucelufukcan.github.io/gymLog` adresine git
 4. Telefonda Safari/Chrome → "Ana Ekrana Ekle"
 
 ## Veri Güvenliği
